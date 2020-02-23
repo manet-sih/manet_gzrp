@@ -3,6 +3,7 @@
 #include "ns3/object-base.h"
 #include "ns3/address-utils.h"
 #include "ns3/packet.h"
+#include <vector>
 //typeid is not yet discusssed and implemented
 class GzrpPacket: public ns3::Header{
 	private:
@@ -10,7 +11,9 @@ class GzrpPacket: public ns3::Header{
 		ns3::Ipv4Address srcIp;
 		uint32_t zoneId;
 		uint32_t seqNum;
-		uint8_t numKnownZones;
+		uint32_t numKnownZones;
+        std::vector<uint32_t> neighbourZones;
+		static ns3::TypeId GetTypeId(void);
 		virtual ns3::TypeId GetInstanceTypeId(void) const;
 		virtual uint32_t GetSerializedSize() const;
 		virtual void Serialize(ns3::Buffer::Iterator start) const;
@@ -23,11 +26,14 @@ class GzrpPacket: public ns3::Header{
 		void setSrcIp(ns3::Ipv4Address ip);
 		void setSeqNo(uint32_t seqNo);
 		void setZoneId(uint32_t zId);
-		void setNumKnownZones(uint8_t );
+		void setNumKnownZones(uint32_t knownZones);
+		void setNeighbourZones(std::vector<uint32_t>& zones);
 		ns3::Ipv4Address getSrcIp();
 		uint32_t getSeqNo();
 		uint32_t getZoneId();
 		uint8_t getNumKnownZones();
+		bool getNeighbourZones(std::vector<uint32_t>& zones);
+
 };
 
 
