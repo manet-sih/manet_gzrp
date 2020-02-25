@@ -12,6 +12,7 @@ class GzrpPacket: public ns3::Header{
 		uint32_t zoneId;
 		uint32_t seqNum;
 		uint32_t numKnownZones;
+		uint32_t numHops;
         std::vector<uint32_t> neighbourZones;
 		static ns3::TypeId GetTypeId(void);
 		virtual ns3::TypeId GetInstanceTypeId(void) const;
@@ -22,17 +23,19 @@ class GzrpPacket: public ns3::Header{
 	 
 	public:
 		GzrpPacket();
-		GzrpPacket(ns3::Ipv4Address srcAddr,uint32_t zone,uint32_t seqNo,uint32_t KnownZones);
+		GzrpPacket(ns3::Ipv4Address srcAddr,uint32_t zone,uint32_t seqNo,uint32_t KnownZones,uint32_t hops);
 		void setSrcIp(ns3::Ipv4Address ip);
 		void setSeqNo(uint32_t seqNo);
 		void setZoneId(uint32_t zId);
 		void setNumKnownZones(uint32_t knownZones);
 		void setNeighbourZones(std::vector<uint32_t>& zones);
+		void setNumHops(uint32_t hopsCount);
 		ns3::Ipv4Address getSrcIp();
-		uint32_t getSeqNo();
-		uint32_t getZoneId();
-		uint8_t getNumKnownZones();
-		bool getNeighbourZones(std::vector<uint32_t>& zones);
+		uint32_t getSeqNo()const;
+		uint32_t getZoneId()const;
+		uint8_t getNumKnownZones() const;
+		bool getNeighbourZones(std::vector<uint32_t>& zones) const;
+		uint32_t getNumHops()const;
 
 };
 
