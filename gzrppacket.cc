@@ -1,6 +1,6 @@
 #include "./gzrppacket.h"
 GzrpPacket::GzrpPacket(){}
-GzrpPacket::GzrpPacket(ns3::Ipv4Address srcAddr,uint32_t zone,uint32_t seqNo,uint32_t KnownZones,uint32_t hops):srcIp(srcAddr),zoneId(zone),seqNum(seqNo),numKnownZones(KnownZones),numHops(hops){}
+GzrpPacket::GzrpPacket(ns3::Ipv4Address srcAddr,uint32_t zone,uint32_t seqNo,uint32_t KnownZones,Metric& met):srcIp(srcAddr),zoneId(zone),seqNum(seqNo),numKnownZones(KnownZones),packetMetric(met){}
 
 void GzrpPacket:: setSrcIp(ns3::Ipv4Address ip)
 {
@@ -18,8 +18,8 @@ void GzrpPacket:: setNumKnownZones(uint32_t knownZones)
 {
     numKnownZones=knownZones;
 }
-void GzrpPacket::setNumHops(uint32_t hopsCount){
-	numHops = hopsCount;
+void GzrpPacket::setMetric(Metric& met){
+	packetMetric.setMetric(met);
 }
 ns3::Ipv4Address GzrpPacket:: getSrcIp()
 {
@@ -41,8 +41,8 @@ void GzrpPacket::setNeighbourZones(std::vector<uint32_t>& zones)
         if(zones.size())
         neighbourZones=zones;
 }
-uint32_t GzrpPacket::getNumHops()const {
-	return numHops;
+Metric GzrpPacket::getMetric()const {
+	return packetMetric.getMetric();
 }
 bool GzrpPacket::getNeighbourZones(std::vector<uint32_t>& zones) const
 {
