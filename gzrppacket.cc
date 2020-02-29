@@ -79,6 +79,7 @@ ns3::TypeId GzrpPacket::GetTypeId (void)
 	itr.WriteHtonU32 ( zoneId);
 	itr.WriteHtonU32 (seqNum);
   itr.WriteHtonU32(numKnownZones);
+  itr.WriteHtonU32(metric);/*after change matric change rthis*/
 	for(uint32_t i=0;i<numKnownZones;i++){
     itr.WriteHtonU32(neighbourZones[i]);
   }
@@ -91,6 +92,7 @@ uint32_t GzrpPacket::Deserialize (ns3::Buffer::Iterator start)
 	zoneId = itr.ReadNtohU32 ();
 	seqNum= itr.ReadNtohU32 ();
 	numKnownZones=itr.ReadNtohU32();
+  metric=itr.ReadNtohU32();/*after change matric change rthis*/
   for(uint32_t i=0;i<numKnownZones;i++){
     uint32_t zone = itr.ReadNtohU32();
     neighbourZones.push_back(zone);

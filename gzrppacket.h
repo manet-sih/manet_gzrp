@@ -14,7 +14,7 @@ class GzrpPacket: public ns3::Header{
 		uint32_t seqNum;
 		uint32_t numKnownZones;
 		Metric packetMetric;
-        	std::vector<uint32_t> neighbourZones;
+        std::vector<uint32_t> neighbourZones;
 		static ns3::TypeId GetTypeId(void);
 		virtual ns3::TypeId GetInstanceTypeId(void) const;
 		virtual uint32_t GetSerializedSize() const;
