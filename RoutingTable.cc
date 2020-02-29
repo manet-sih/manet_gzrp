@@ -119,3 +119,8 @@ bool RoutingTable::getKnownZones(std::set<ns3::Ipv4InterfaceAddress>& knownZones
 	 }
 	 
 }
+
+void setKnownZones(std::set<ns3::Ipv4InterfaceAddress>& knownzones,uint32_t zone)
+{
+	knownZonesTable[zone]=knownzones;
+}

@@ -60,6 +60,14 @@ inline void RoutingTableEntry::setLifeTime(ns3::Time time){
 inline void RoutingTableEntry::setNextHop(ns3::Ipv4Address hop){
 	route->SetGateway(hop);
 }
+void RoutingTableEntry::setMetric(Metric& met)
+{
+     metric=met;
+}
+Metric RoutingTableEntry:: getMetric()
+{
+     return metric;
+}
 inline void RoutingTableEntry::setRoute(ns3::Ptr<ns3::Ipv4Route> route){
 	this->route = route;
 }

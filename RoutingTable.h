@@ -26,5 +26,6 @@ class RoutingTable{
 		void getAllRoutes(std::map<ns3::Ipv4Address,RoutingTableEntry>& table);
 		void deleteRoutesWithInterface(ns3::Ipv4InterfaceAddress addr);
 		bool getKnownZones(std::set<ns3::Ipv4InterfaceAddress>& ,uint32_t zone);
+		void setKnownZones(std::set<ns3::Ipv4InterfaceAddress>& ,uint32_t zone);
 };
 		

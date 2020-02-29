@@ -4,7 +4,7 @@ class Metric{
 	public:
 		Metric();
 		Metric(uint32_t hops);
-		Metric(Metric& met);
+		void setMetric(Metric& met);
 		Metric getMetric()const;
 		bool operator <(const Metric& met){
 			return (met.hopsCount>this->hopsCount)?true:false;
