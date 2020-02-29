@@ -7,6 +7,7 @@ class RoutingTable{
 		std::map<ns3::Ipv4Address, ns3::EventId> eventTable;
 		std::map<ns3::Ipv4Address,RoutingTableEntry> rTable;
 		ns3::Time holdTime;
+		std::map<uint32_t,std::set<ns3::Ipv4InterfaceAddress>>knownZonesTable;
 	public:
 		RoutingTable();
 		void addEvent(ns3::Ipv4Address addr,ns3::EventId);
@@ -24,5 +25,6 @@ class RoutingTable{
 		void deleteAllInvalidRoutes();
 		void getAllRoutes(std::map<ns3::Ipv4Address,RoutingTableEntry>& table);
 		void deleteRoutesWithInterface(ns3::Ipv4InterfaceAddress addr);
+		bool getKnownZones(std::set<ns3::Ipv4InterfaceAddress>& ,uint32_t zone);
 };
 		

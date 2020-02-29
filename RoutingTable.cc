@@ -107,3 +107,15 @@ void RoutingTable::deleteAllInvalidRoutes(){
 		else itr++;
 	}
 }
+bool RoutingTable::getKnownZones(std::set<ns3::Ipv4InterfaceAddress>& knownZones,uint32_t zone)
+{
+	auto itr = knownZonesTable.find(zone);
+	if(itr == knownZonesTable.end())
+	 return false;
+	 else
+	 {
+		knownZones=itr->second;
+		 return true;
+	 }
+	 
+}
