@@ -16,12 +16,10 @@ class RoutingTableEntry{
 		Metric metric;
 		ns3::Ipv4InterfaceAddress outputLinkInterface;
 		ns3::Ptr<ns3::Ipv4Route> route;
-		bool changed;
 		ns3::Time lifeTime;
-		ns3::Time settlingTime;
 		EntryState state;
 	public:
-		RoutingTableEntry(ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Time settlingTime,bool changed,ns3::Ptr<ns3::NetDevice> dev);
+		RoutingTableEntry(ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Ptr<ns3::NetDevice> dev);
 		~RoutingTableEntry();
 		RoutingTableEntry();
 		bool compareMetric(Metric& newMetric){
@@ -33,13 +31,11 @@ class RoutingTableEntry{
 		inline ns3::Ipv4Address getDsptIp() const;
 		inline ns3::Ipv4InterfaceAddress getLink() const;
 		inline ns3::Ptr<ns3::Ipv4Route> getRoute() const;
-		inline bool isChanged() const;
 		inline ns3::Time getLifeTime() const;
 		inline ns3::Ipv4Address getNextHop() const;
 		inline void setSeqNumber(uint32_t seq_number);
 		inline void setDevice(ns3::Ptr<ns3::NetDevice> dev);
 		inline void setLink(ns3::Ipv4InterfaceAddress link);
-		inline void setChanged(bool flag);
 		inline void setEntryState(EntryState state);
 		inline void setLifeTime(ns3::Time time);
 		void setMetric(Metric&);
