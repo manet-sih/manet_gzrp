@@ -4,84 +4,122 @@
 #include "ns3/ipv4-l3-protocol.h"
 #include "RoutingProtocol.h"
 #include "ns3/packet.h"
-/*static ns3::TypeId GetTypeId ()
-  {
-  static ns3::TypeId tid = ns3::TypeId ("ns3::dsdv::DeferredRouteOutputTag")
-  .SetParent<ns3::Tag> ()
-  .SetGroupName ("Dsdv")
-  .AddConstructor<DeferredRouteOutputTag> ()
-  ;
-  return tid;
-  }
-  */
-//******dsdv_port //EMPTY
-ns3::Ptr<ns3::Socket> RoutingProtocol::findSocketWithInterfaceAddress(ns3::Ipv4InterfaceAddress interface) const{
-	auto itr = socketToInterfaceMap.cbegin();
-	while(itr != socketToInterfaceMap.cend()){
-		if(itr->second == interface) return itr->first;
+ns3::Ptr<ns3::Socket> RoutingProtocol::findIntrazoneSocket(ns3::Ipv4InterfaceAddress address) const{
+	for(auto itr = intrazoneSocketMap.begin();itr!=intrazoneSocketMap.end();itr++){
+		if(address == itr->second) return itr->first;
 	}
-	return NULL;
+	return ns3::Ptr<ns3::Socket>(0);
+}
+ns3::Ptr<ns3::Socket> RoutingProtocol::findInterzoneSocket(ns3::Ipv4InterfaceAddress address) const{
+	for(auto itr = interzoneSocketMap.cbegin();itr!=interzoneSocketMap.cend();itr++){
+		if(address == itr->second) return itr->first;
+	}
+	return ns3::Ptr<ns3::Socket>(0);
 }
 void RoutingProtocol::NotifyInterfaceDown(uint32_t interface){
-	ns3::Ptr<ns3::Socket> socket = findSocketWithInterfaceAddress(ptrIp->GetAddress(interface,0));
-	socket->Close();
-	socketToInterfaceMap.erase(socket);
+	ns3::Ptr<ns3::Socket> intrazoneSocket = findIntrazoneSocket(ptrIp->GetAddress(interface,0));
+	ns3::Ptr<ns3::Socket> interzoneSocket = findInterzoneSocket(ptrIp->GetAddress(interface,0));
+	intrazoneSocket->Close();
+	interzoneSocket->Close();
+	intrazoneSocketMap.erase(intrazoneSocket);
+	interzoneSocketMap.erase(interzoneSocket);
 	routingTable.deleteRoutesWithInterface(ptrIp->GetAddress(interface,0));
-	//Message printing for interface up
+	// 		To-Do
+	//Message printing for interface down
+	//
 }
 void RoutingProtocol::NotifyInterfaceUp(uint32_t interface){
-	//Message printing for interface up
+	//             To-Do
+	//Message Printing for interface up
+	//
 	ns3::Ipv4InterfaceAddress iface = ptrIp->GetAddress(interface,0);
-	ns3::Ptr<ns3::Socket> socket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (), ns3::UdpSocketFactory::GetTypeId ()); 
-	socket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvDsdv,this));
-	socket->BindToNetDevice (ptrIp->GetNetDevice (interface));
-	socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), DSDV_PORT));
-	socket->SetAllowBroadcast (true);
-	socket->SetAttribute ("IpTtl",ns3::UintegerValue (1));
-	socketToInterfaceMap.insert (std::make_pair (socket,iface));
+	//discard loopback interface
+	if(iface.GetLocal() == ns3::Ipv4Address("127.0.0.1")) return;
+	//add intrazone socket
+	ns3::Ptr<ns3::Socket> intrazoneSocket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (), ns3::UdpSocketFactory::GetTypeId ()); 
+	intrazoneSocket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvUpdates,this));
+	intrazoneSocket->BindToNetDevice (ptrIp->GetNetDevice (interface));
+	intrazoneSocket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), INTRAZONE_PORT));
+	intrazoneSocket->SetAllowBroadcast (true);
+	intrazoneSocket->SetAttribute ("IpTtl",ns3::UintegerValue (1));
+	//add interzone socket
+	ns3::Ptr<ns3::Socket> interzoneSocket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (), ns3::UdpSocketFactory::GetTypeId ()); 
+	interzoneSocket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvInterzoneControlPackets,this));
+	interzoneSocket->BindToNetDevice (ptrIp->GetNetDevice (interface));
+	interzoneSocket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), INTERZONE_PORT));
+	interzoneSocket->SetAllowBroadcast (true);
+	interzoneSocket->SetAttribute ("IpTtl",ns3::UintegerValue (64));
+	interzoneSocketMap.insert (std::make_pair (interzoneSocket,iface));
+	interzoneSocketMap.insert (std::make_pair (interzoneSocket,iface));
+	//add entry to routing table
 	ns3::Ptr<ns3::NetDevice> dev = ptrIp->GetNetDevice (ptrIp->GetInterfaceForAddress (iface.GetLocal ()));
-	/*inclomplete getlocal get net device"*/
+	RoutingTableEntry rt ( iface.GetBroadcast (),  0,Metric(0), iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime (),dev);
+	routingTable.addRouteEntry (rt);
+	if (nodeAddress == ns3::Ipv4Address ())
+	{
+		nodeAddress = iface.GetLocal ();
+	}
 }
 void RoutingProtocol::NotifyAddAddress(uint32_t interfaceNo,ns3::Ipv4InterfaceAddress address){
-	if (!ptrIp->IsUp (interfaceNo))
-	{
-		return;
-	}
-	ns3::Ipv4InterfaceAddress iface = ptrIp->GetAddress (interfaceNo,0);
-	ns3::Ptr<ns3::Socket> socket = RoutingProtocol::findSocketWithInterfaceAddress (iface);
-	if (!socket)
-	{
-		if (iface.GetLocal () == ns3::Ipv4Address ("127.0.0.1"))
-		{
+	ns3::Ptr<ns3::Ipv4L3Protocol>  l3 = ptrIp->GetObject<ns3::Ipv4L3Protocol>();
+	if(!l3->IsUp(interfaceNo)) return;
+	ns3::Ipv4InterfaceAddress iface = l3->GetAddress (interfaceNo,0);
+	ns3::Ptr<ns3::Socket> intrazoneSocket = RoutingProtocol::findIntrazoneSocket (iface);
+	if (!intrazoneSocket){
+		if (iface.GetLocal () == ns3::Ipv4Address ("127.0.0.1")){
 			return;
 		}
 		ns3::Ptr<ns3::Socket> socket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (),ns3::UdpSocketFactory::GetTypeId ());
-		/*imortant 		//socket->SetRecvCallback (MakeCallback (&RoutingProtocol::RecvDsdv,this));     */
+		socket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvUpdates,this));     
 		socket->BindToNetDevice (ptrIp->GetNetDevice (interfaceNo));
-		socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), DSDV_PORT));
+		socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), INTRAZONE_PORT));
 		socket->SetAllowBroadcast (true);
-		socketToInterfaceMap.insert (std::make_pair (socket,iface));
+		intrazoneSocketMap.insert (std::make_pair (socket,iface));
 		ns3::Ptr<ns3::NetDevice> dev = ptrIp->GetNetDevice (ptrIp->GetInterfaceForAddress (iface.GetLocal ()));
-		//important		RoutingTableEntry rt (/*device=*/ dev, /*dst=*/ iface.GetBroadcast (),/*seqno=*/ 0, /*iface=*/ iface,/*hops=*/ 0,
-		//				/*next hop=*/ iface.GetBroadcast (), /*lifetime=*/ ns3::Simulator::GetMaximumSimulationTime ());   
+		RoutingTableEntry rt ( iface.GetBroadcast (), 0, Metric(0),iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime (),dev); 
 		routingTable.addRouteEntry (rt);
+	}
+	ns3::Ptr<ns3::Socket> interzoneSocket = RoutingProtocol::findInterzoneSocket (iface);
+	if (!interzoneSocket){
+		if (iface.GetLocal () == ns3::Ipv4Address ("127.0.0.1")){
+			return;
+		}
+		ns3::Ptr<ns3::Socket> socket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (),ns3::UdpSocketFactory::GetTypeId ());
+		socket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvInterzoneControlPackets,this));     
+		socket->BindToNetDevice (ptrIp->GetNetDevice (interfaceNo));
+		socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), INTERZONE_PORT));
+		socket->SetAllowBroadcast (true);
+		interzoneSocketMap.insert (std::make_pair (socket,iface));
 	}
 }
 void RoutingProtocol::NotifyRemoveAddress(uint32_t interfaceNo, ns3::Ipv4InterfaceAddress ifaceAddress){
-	ns3::Ptr<ns3::Socket> socket = findSocketWithInterfaceAddress(ifaceAddress);
-	if(socket != NULL){
-		socketToInterfaceMap.erase (socket);
+	ns3::Ptr<ns3::Socket> intrazoneSocket = findIntrazoneSocket(ifaceAddress);
+	if(intrazoneSocket){
+		intrazoneSocketMap.erase (intrazoneSocket);
 		if (ptrIp->GetNAddresses (interfaceNo)){	
 			ns3::Ipv4InterfaceAddress iface = ptrIp->GetAddress(interfaceNo,0);
 			ns3::Ptr<ns3::Socket> socket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (),ns3::UdpSocketFactory::GetTypeId ());
-			socket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvDsdv,this));
-			socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), DSDV_PORT));
+			socket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvUpdates,this));
+			socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), INTRAZONE_PORT));
 			socket->SetAllowBroadcast (true);
-			socketToInterfaceMap.insert (std::make_pair (socket,iface));
+			intrazoneSocketMap.insert (std::make_pair (socket,iface));
 		}
 	}
+	ns3::Ptr<ns3::Socket> interzoneSocket = findInterzoneSocket(ifaceAddress);
+	if(interzoneSocket){
+		interzoneSocketMap.erase (interzoneSocket);
+		if (ptrIp->GetNAddresses (interfaceNo)){	
+			ns3::Ipv4InterfaceAddress iface = ptrIp->GetAddress(interfaceNo,0);
+			ns3::Ptr<ns3::Socket> socket = ns3::Socket::CreateSocket (GetObject<ns3::Node> (),ns3::UdpSocketFactory::GetTypeId ());
+			socket->SetRecvCallback (MakeCallback (&RoutingProtocol::recvInterzoneControlPackets,this));
+			socket->Bind (ns3::InetSocketAddress (ns3::Ipv4Address::GetAny (), INTERZONE_PORT));
+			socket->SetAllowBroadcast (true);
+			interzoneSocketMap.insert (std::make_pair (socket,iface));
+		}
+	}
+	
 }
-
+/*
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){
 	if(socketToInterfaceMap.empty())  return false;
 	ns3::Ipv4Address src=header.GetSource();
@@ -297,4 +335,4 @@ void RoutingProtocol::sendPeriodicUpdates()
              }
         
      }        
- }
+ }*/
