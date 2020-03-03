@@ -1,11 +1,10 @@
-#include "./Metric.h"
-Metric::Metric(){}
+#include "Metric.h"
 Metric::Metric(uint32_t hops){
 	hopsCount = hops;
 }
-void Metric::setMetric(Metric &m){
-	hopsCount=hopsCount;
-}	
-Metric Metric::getMetric()const{
-	return Metric(hopsCount);
+uint32_t Metric::getMagnitude() const{
+	return hopsCount;
+}
+void Metric::setMagnitude(uint32_t val){
+	hopsCount = val;
 }
