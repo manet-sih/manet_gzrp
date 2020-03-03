@@ -1,6 +1,6 @@
 #include "./gzrppacket.h"
 GzrpPacket::GzrpPacket(){}
-GzrpPacket::GzrpPacket(ns3::Ipv4Address srcAddr,uint32_t zone,uint32_t seqNo,uint32_t KnownZones,Metric& met):srcIp(srcAddr),zoneId(zone),seqNum(seqNo),numKnownZones(KnownZones),packetMetric(met){}
+GzrpPacket::GzrpPacket(ns3::Ipv4Address srcAddr,uint32_t zone,uint32_t seqNo,uint32_t KnownZones,Metric met):srcIp(srcAddr),zoneId(zone),seqNum(seqNo),numKnownZones(KnownZones),packetMetric(met){}
 
 void GzrpPacket:: setSrcIp(ns3::Ipv4Address ip)
 {
@@ -18,8 +18,8 @@ void GzrpPacket:: setNumKnownZones(uint32_t knownZones)
 {
 	numKnownZones=knownZones;
 }
-void GzrpPacket::setMetric(Metric& met){
-	packetMetric.setMetric(met);
+void GzrpPacket::setMetric(uint32_t val){
+	packetMetric.setMagnitude(val);
 }
 ns3::Ipv4Address GzrpPacket:: getSrcIp()
 {
@@ -36,15 +36,24 @@ uint8_t GzrpPacket::getNumKnownZones() const
 {
 	return numKnownZones;
 }
-void GzrpPacket::setNeighbourZones(std::vector<uint32_t>& zones) 
+void GzrpPacket::setNeighbourZones(std::set<uint32_t>& zones) 
 {
 	if(zones.size())
 		neighbourZones=zones;
 }
-Metric GzrpPacket::getMetric()const {
-	return packetMetric.getMetric();
+uint32_t GzrpPacket::getMetric()const {
+	return packetMetric.getMagnitude();
 }
-bool GzrpPacket::getNeighbourZones(std::vector<uint32_t>& zones) const
+void GzrpPacket::addZone(uint32_t zone){
+	neighbourZones.insert(zone);
+}
+bool GzrpPacket::deleteZone(uint32_t zone){
+	auto findItr = neighbourZones.find(zone);
+	if(findItr == neighbourZones.end()) return false;
+	neighbourZones.erase(zone);
+	return true;
+}
+bool GzrpPacket::getNeighbourZones(std::set<uint32_t>& zones) const
 {
 	if( numKnownZones != 0){
 		zones=neighbourZones;
@@ -79,9 +88,9 @@ void GzrpPacket::Serialize (ns3::Buffer::Iterator itr) const
 	itr.WriteHtonU32 ( zoneId);
 	itr.WriteHtonU32 (seqNum);
 	itr.WriteHtonU32(numKnownZones);
-	itr.WriteHtonU32(metric);/*after change matric change rthis*/
-	for(uint32_t i=0;i<numKnownZones;i++){
-		itr.WriteHtonU32(neighbourZones[i]);
+	itr.WriteHtonU32(packetMetric.getMagnitude());/*after change matric change rthis*/
+	for(uint32_t zone : neighbourZones){
+		itr.WriteHtonU32(zone);
 	}
 
 }
@@ -92,10 +101,10 @@ uint32_t GzrpPacket::Deserialize (ns3::Buffer::Iterator start)
 	zoneId = itr.ReadNtohU32 ();
 	seqNum= itr.ReadNtohU32 ();
 	numKnownZones=itr.ReadNtohU32();
-	metric=itr.ReadNtohU32();/*after change matric change rthis*/
+	packetMetric.setMagnitude(itr.ReadNtohU32());/*after change matric change rthis*/
 	for(uint32_t i=0;i<numKnownZones;i++){
 		uint32_t zone = itr.ReadNtohU32();
-		neighbourZones.push_back(zone);
+		neighbourZones.insert(zone);
 	}
 	uint32_t readSize = itr.GetDistanceFrom (start);
 	NS_ASSERT (readSize == GetSerializedSize ());
@@ -105,8 +114,8 @@ void GzrpPacket::Print(std::ostream &os) const{
 	os << "My convention source Ipv4: " << srcIp
 		<< " Zone id " << zoneId 
 		<< "sequence number " << seqNum<<"number of known zones: "<<numKnownZones;
-	for(uint32_t i=0;i<numKnownZones;i++){
-		os<<"Neighbouring Zones: "<<neighbourZones[i]<<"\n";
+	for(auto zone : neighbourZones){
+		os<<"Neighbouring Zones: "<<zone<<"\n";
 	}
 }
 
