@@ -8,6 +8,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		std::map<ns3::Ptr<ns3::Socket>,ns3::Ipv4InterfaceAddress> intrazoneSocketMap;
 		std::map<ns3::Ptr<ns3::Socket>,ns3::Ipv4InterfaceAddress> interzoneSocketMap;
 		std::map<ns3::Ipv4Address,uint32_t> serviceMap;
+		ns3::Time settlingTime;
 		uint32_t myZoneId;
 	private:
 		void start(); //not implemented

@@ -129,16 +129,33 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 	Ipv4Address sender = inetSourceAddr.GetIpv4();
 	Ipv4Address receiver = intrazoneSocketMap[socket].GetLocal();
 	Ptr<NetDevice> dev = ptrIp->GetNetDevice(ptrIp->GetInterfaceForAddress(receiver));
+	routingTable.deleteAllInvalidRoutes();
 	uint32_t packetSize = packet->GetSize();
 	while(packetSize>0){
 		GzrpPacket header;
 		packet->RemoveHeader(header);
+		packetSize-=header.ns3::Header::GetSerializedSize();
 		int count = 0;
 		for(auto itr = intrazoneSocketMap.begin();itr!=intrazoneSocketMap.end();itr++){
 			Ipv4InterfaceAddress interface = itr->second;
 			if(header.getSrcIp() == interface.GetLocal()) count++;
 		}
 		if(count>0) continue;
+		if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
+			routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+		}
+		RoutingTableEntry existingEntry;
+		bool entryFound = routingTable.search(header.getSrcIp(),existingEntry);
+		if(entryFound == false){
+			RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric()+1,ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
+			routingTable.addRouteEntry(re);
+			std::set<uint32_t> neighbourSet;
+			header.getNeighbourZones(neighbourSet);
+			for(uint32_t zones : neighbourSet){
+				routingTable.addZoneIp(header.getSrcIp(),zones);
+			}
+		}else{
+		}
 	}
 }
 
