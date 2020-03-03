@@ -1,9 +1,12 @@
 #include "RoutingProtocol.h" 
+#include "gzrppacket.h"
 #include "ns3/uinteger.h"
 #include "ns3/udp-socket-factory.h"
 #include "ns3/ipv4-l3-protocol.h"
 #include "RoutingProtocol.h"
 #include "ns3/packet.h"
+//using namespace ns3 for rapid code developement, after final commit will be removed
+using namespace ns3;
 ns3::Ptr<ns3::Socket> RoutingProtocol::findIntrazoneSocket(ns3::Ipv4InterfaceAddress address) const{
 	for(auto itr = intrazoneSocketMap.begin();itr!=intrazoneSocketMap.end();itr++){
 		if(address == itr->second) return itr->first;
@@ -55,8 +58,7 @@ void RoutingProtocol::NotifyInterfaceUp(uint32_t interface){
 	ns3::Ptr<ns3::NetDevice> dev = ptrIp->GetNetDevice (ptrIp->GetInterfaceForAddress (iface.GetLocal ()));
 	RoutingTableEntry rt ( iface.GetBroadcast (),  0,Metric(0), iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime (),dev);
 	routingTable.addRouteEntry (rt);
-	if (nodeAddress == ns3::Ipv4Address ())
-	{
+	if (nodeAddress == ns3::Ipv4Address ()){
 		nodeAddress = iface.GetLocal ();
 	}
 }
@@ -119,6 +121,27 @@ void RoutingProtocol::NotifyRemoveAddress(uint32_t interfaceNo, ns3::Ipv4Interfa
 	}
 	
 }
+void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
+	ns3::Address sourceAddress;
+	ns3::Ptr<ns3::Packet> advPacket = Create<Packet>();
+	ns3::Ptr<ns3::Packet> packet = socket->RecvFrom(sourceAddress);
+	ns3::InetSocketAddress inetSourceAddr = ns3::InetSocketAddress::ConvertFrom(sourceAddress);
+	Ipv4Address sender = inetSourceAddr.GetIpv4();
+	Ipv4Address receiver = intrazoneSocketMap[socket].GetLocal();
+	Ptr<NetDevice> dev = ptrIp->GetNetDevice(ptrIp->GetInterfaceForAddress(receiver));
+	uint32_t packetSize = packet->GetSize();
+	while(packetSize>0){
+		GzrpPacket header;
+		packet->RemoveHeader(header);
+		int count = 0;
+		for(auto itr = intrazoneSocketMap.begin();itr!=intrazoneSocketMap.end();itr++){
+			Ipv4InterfaceAddress interface = itr->second;
+			if(header.getSrcIp() == interface.GetLocal()) count++;
+		}
+		if(count>0) continue;
+	}
+}
+
 /*
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){
 	if(socketToInterfaceMap.empty())  return false;
