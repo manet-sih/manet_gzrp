@@ -107,20 +107,49 @@ void RoutingTable::deleteAllInvalidRoutes(){
 		else itr++;
 	}
 }
-bool RoutingTable::getKnownZones(std::set<ns3::Ipv4InterfaceAddress>& knownZones,uint32_t zone)
+bool RoutingTable::getKnownZones(std::set<ns3::Ipv4Address>& knownZones,uint32_t zone)
 {
 	auto itr = knownZonesTable.find(zone);
 	if(itr == knownZonesTable.end())
-	 return false;
-	 else
-	 {
-		knownZones=itr->second;
-		 return true;
-	 }
-	 
+		return false;
+	else{
+		knownZones = itr->second;
+		return true;
+	}
+
+}
+void RoutingTable::addZoneIp(ns3::Ipv4Address ip,uint32_t zone){
+	auto findItr = knownZonesTable.find(zone);
+	if(findItr == knownZonesTable.end()){
+		knownZonesTable[zone] = std::set<ns3::Ipv4Address>();
+	}
+	knownZonesTable[zone].insert(ip);
+}
+bool RoutingTable::deleteZoneIp(ns3::Ipv4Address ip,uint32_t zone){
+	auto findItr = knownZonesTable.find(zone);
+	if(findItr == knownZonesTable.end()){
+		return false;
+	}
+	std::set<ns3::Ipv4Address>& ipSet = findItr->second;
+	auto findIp = ipSet.find(ip);
+	if(findIp == ipSet.end()) return false;
+	ipSet.erase(findIp);
+	if(ipSet.size() == 0) knownZonesTable.erase(findItr);
+	return true;
+}
+bool RoutingTable::deleteZoneIp(ns3::Ipv4Address ip,std::map<uint32_t,std::set<ns3::Ipv4Address>>::iterator findItr){
+	std::set<ns3::Ipv4Address>& ipSet = findItr->second;
+	auto findIp = ipSet.find(ip);
+	if(findIp == ipSet.end()) return false;
+	ipSet.erase(findIp);
+	if(ipSet.size() == 0) knownZonesTable.erase(findItr);
+	return true;
 }
 
-void setKnownZones(std::set<ns3::Ipv4InterfaceAddress>& knownzones,uint32_t zone)
-{
-	knownZonesTable[zone]=knownzones;
+bool RoutingTable::deleteIpFromZoneMap(ns3::Ipv4Address addr){
+	bool result = false;
+	for(auto itr = knownZonesTable.begin();itr!=knownZonesTable.end();itr++){
+		result = result||(deleteZoneIp(addr,itr));
+	}
+	return result;
 }
