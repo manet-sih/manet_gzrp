@@ -21,7 +21,7 @@ class RoutingTableEntry{
 		bool changed;
 		EntryState state;
 	public:
-		RoutingTableEntry(ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Time settlingTime,ns3::Ptr<ns3::NetDevice> dev,bool changed);
+		RoutingTableEntry(ns3::Ptr<ns3::NetDevice> dev,ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime=ns3::Simulator::Now(),ns3::Time settlingTime = ns3::Simulator::Now(),bool changed = false);
 		~RoutingTableEntry();
 		RoutingTableEntry();
 		bool compareMetric(Metric& newMetric){

@@ -1,6 +1,6 @@
 #include "RoutingTableEntry.h"
 
-RoutingTableEntry::RoutingTableEntry(ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Time settlingTime,ns3::Ptr<ns3::NetDevice> dev,bool changed):
+RoutingTableEntry::RoutingTableEntry(ns3::Ptr<ns3::NetDevice> dev,ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Time settlingTime,bool changed):
 	srcIp(destIp),
 	seqNumber(seqNumber),
 	metric(met),
