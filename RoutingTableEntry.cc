@@ -1,21 +1,20 @@
 #include "RoutingTableEntry.h"
 
-RoutingTableEntry::RoutingTableEntry(ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Ptr<ns3::NetDevice> dev):
+RoutingTableEntry::RoutingTableEntry(ns3::Ipv4Address destIp,uint32_t seqNumber,Metric met,ns3::Ipv4InterfaceAddress interface,ns3::Ipv4Address nextHop,ns3::Time lifetime,ns3::Time settlingTime,ns3::Ptr<ns3::NetDevice> dev,bool changed):
 	srcIp(destIp),
 	seqNumber(seqNumber),
 	metric(met),
 	outputLinkInterface(interface),
-	
 	lifeTime(lifetime),
-
-	state(EntryState::VALID)
-	{
-		route = ns3::Create<ns3::Ipv4Route>();
-		route->SetGateway(nextHop);
-		route->SetDestination(srcIp);
-		route->SetSource(outputLinkInterface.GetLocal());
-		route->SetOutputDevice(dev);
-	}
+	settlingTime(settlingTime),
+	changed(changed)
+{
+	route = ns3::Create<ns3::Ipv4Route>();
+	route->SetGateway(nextHop);
+	route->SetDestination(srcIp);
+	route->SetSource(outputLinkInterface.GetLocal());
+	route->SetOutputDevice(dev);
+}
 RoutingTableEntry::RoutingTableEntry(){
 }	
 inline uint32_t RoutingTableEntry:: getSeqNumber() const{
@@ -54,6 +53,18 @@ inline void RoutingTableEntry::setLifeTime(ns3::Time time){
 inline void RoutingTableEntry::setNextHop(ns3::Ipv4Address hop){
 	route->SetGateway(hop);
 }
+inline void RoutingTableEntry::setSettlingTime(ns3::Time time){
+	settlingTime = time;
+}
+inline void RoutingTableEntry::setChangedState(bool changed){
+	this->changed = changed;
+}
+inline bool RoutingTableEntry::isChanged(){
+	return changed;
+}
+inline ns3::Time RoutingTableEntry::getSettlingTime(){
+	return settlingTime;
+}
 void RoutingTableEntry::setMetric(Metric& met)
 {
      metric=met;
@@ -65,3 +76,4 @@ Metric RoutingTableEntry:: getMetric()
 inline void RoutingTableEntry::setRoute(ns3::Ptr<ns3::Ipv4Route> route){
 	this->route = route;
 }
+
