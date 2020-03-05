@@ -30,5 +30,6 @@ class RoutingTable{
 		void addZoneIp(ns3::Ipv4Address ip,uint32_t zone);
 		bool deleteZoneIp(ns3::Ipv4Address ip,uint32_t zone);
 		bool deleteIpFromZoneMap(ns3::Ipv4Address ip);
+		bool anyRunningEvent(ns3::Ipv4Address);
 };
 		

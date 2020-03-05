@@ -205,6 +205,32 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 	}
 }
 
+void RoutingProtocol::SendTriggeredUpdate(){
+	//print log to send triggered update
+	std::map<Ipv4Address,RoutingTableEntry> allRoutes;
+	routingTable.getAllRoutes(allRoutes);
+	for(auto j = intrazoneSocketMap.begin();j!=intrazoneSocketMap.end();j++){
+		GzrpPacket header;
+		Ptr<Socket> socket = j->first;
+		Ipv4InterfaceAddress iface = j->second;
+		Ptr<Packet> packet = Create<Packet>();
+		for(auto i = allRoutes.begin();i!=allRoutes.end();i++){
+			//print about sending packet
+			RoutingTableEntry temp = i->second;
+			if((i->second.isChanged())&&!(routingTable.anyRunningEvent(temp.getDsptIp()))){
+				header.setSrcIp(i->second.getDsptIp());
+				header.setSeqNo(i->second.getSeqNumber());
+				header.setMetric(i->second.getMetric().getMagnitude()+1);
+				temp.setChangedState(false);
+				routingTable.deleteEvent(temp.getDsptIp());
+				routingTable.updateRoute(temp);
+				packet->AddHeader(header);
+				//routingTable.deleteRouteEntry(temp.getDsptIp());
+			}
+		}
+	}
+}
+
 /*
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){
 	if(socketToInterfaceMap.empty())  return false;

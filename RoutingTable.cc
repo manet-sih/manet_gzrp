@@ -153,3 +153,10 @@ bool RoutingTable::deleteIpFromZoneMap(ns3::Ipv4Address addr){
 	}
 	return result;
 }
+bool RoutingTable::anyRunningEvent(ns3::Ipv4Address addr){
+	auto itr = eventTable.find(addr);
+	if(eventTable.empty()) return false;
+	if(itr== eventTable.end()) return false;
+	if(itr->second.IsRunning()) return true;
+	return false;
+}
