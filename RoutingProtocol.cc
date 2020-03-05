@@ -149,12 +149,14 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 		RoutingTableEntry fwdEntry,advEntry;
 		bool entryFound = routingTable.search(header.getSrcIp(),fwdEntry);
 		if(entryFound == false){
-			RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
-			routingTable.addRouteEntry(re);
-			std::set<uint32_t> neighbourSet;
-			header.getNeighbourZones(neighbourSet);
-			for(uint32_t zones : neighbourSet){
-				routingTable.addZoneIp(header.getSrcIp(),zones);
+			if(header.getSeqNo() % 2 != 1){
+				RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
+				routingTable.addRouteEntry(re);
+				std::set<uint32_t> neighbourSet;
+				header.getNeighbourZones(neighbourSet);
+				for(uint32_t zones : neighbourSet){
+					routingTable.addZoneIp(header.getSrcIp(),zones);
+				}
 			}
 		}else{
 			//Adding route in advRoutingTable if not present in advRoutinTable but present in routingTable
@@ -162,61 +164,83 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 				advRoutingTable.addRouteEntry(fwdEntry);
 				advRoutingTable.search(header.getSrcIp(),advEntry);
 			}
-			if(header.getSeqNo() > advEntry.getSeqNumber()){
-				if(advRoutingTable.deleteEvent(header.getSrcIp())){
-					//Print Cancelling Timer
-				}
-				if(header.getMetric() != advEntry.getMetric().getMagnitude()) {
-					advEntry.setSeqNumber(header.getSeqNo());
-					advEntry.setLifeTime(Simulator::Now());
-					advEntry.setChangedState(true);
-					advEntry.setNextHop(sender);
-					Metric met(header.getMetric());
-					advEntry.setMetric(met);
-					advEntry.setSettlingTime(settlingTime);
-					event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
-					advRoutingTable.addEvent(header.getSrcIp(),event);
-					routingTable.updateRoute(advEntry);
-					advRoutingTable.updateRoute(advEntry);
-				}else{
-					advEntry.setSeqNumber(header.getSeqNo());
-					advEntry.setLifeTime(Simulator::Now());
-					advEntry.setChangedState(true);
-					advEntry.setNextHop(sender);
-					Metric met(header.getMetric());
-					advEntry.setMetric(met);
-					advRoutingTable.updateRoute(advEntry);
-				}
-			}else if(header.getSeqNo() == fwdEntry.getSeqNumber()){
-				if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
-					//print to cancel timer
-					advRoutingTable.deleteEvent(header.getSrcIp());
-					advEntry.setSeqNumber(header.getSeqNo());
-					advEntry.setLifeTime(Simulator::Now());
-					advEntry.setChangedState(true);
-					advEntry.setNextHop(sender);
-					Metric met(header.getMetric());
-					advEntry.setMetric(met);
-					advEntry.setSettlingTime(settlingTime);
-					event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
-					advRoutingTable.addEvent(header.getSrcIp(),event);
-					routingTable.updateRoute(advEntry);
-					advRoutingTable.updateRoute(advEntry);
+			if(header.getSeqNo() %2 !=1){
+				if(header.getSeqNo() > advEntry.getSeqNumber()){
+					if(advRoutingTable.deleteEvent(header.getSrcIp())){
+						//Print Cancelling Timer
+					}
+					if(header.getMetric() != advEntry.getMetric().getMagnitude()) {
+						advEntry.setSeqNumber(header.getSeqNo());
+						advEntry.setLifeTime(Simulator::Now());
+						advEntry.setChangedState(true);
+						advEntry.setNextHop(sender);
+						Metric met(header.getMetric());
+						advEntry.setMetric(met);
+						advEntry.setSettlingTime(settlingTime);
+						event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+						advRoutingTable.addEvent(header.getSrcIp(),event);
+						routingTable.updateRoute(advEntry);
+						advRoutingTable.updateRoute(advEntry);
+					}else{
+						advEntry.setSeqNumber(header.getSeqNo());
+						advEntry.setLifeTime(Simulator::Now());
+						advEntry.setChangedState(true);
+						advEntry.setNextHop(sender);
+						Metric met(header.getMetric());
+						advEntry.setMetric(met);
+						advRoutingTable.updateRoute(advEntry);
+					}
+				}else if(header.getSeqNo() == fwdEntry.getSeqNumber()){
+					if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
+						//print to cancel timer
+						advRoutingTable.deleteEvent(header.getSrcIp());
+						advEntry.setSeqNumber(header.getSeqNo());
+						advEntry.setLifeTime(Simulator::Now());
+						advEntry.setChangedState(true);
+						advEntry.setNextHop(sender);
+						Metric met(header.getMetric());
+						advEntry.setMetric(met);
+						advEntry.setSettlingTime(settlingTime);
+						event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+						advRoutingTable.addEvent(header.getSrcIp(),event);
+						routingTable.updateRoute(advEntry);
+						advRoutingTable.updateRoute(advEntry);
+					}else{
+						if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
+							//update timer because we got notified that sender(next ip) is present.
+							if(advEntry.getNextHop() == sender){
+								advEntry.setLifeTime(Simulator::Now());
+								routingTable.updateRoute(advEntry);
+							}
+							advRoutingTable.deleteRouteEntry(header.getSrcIp());
+						}
+					}
 				}else{
 					if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
-						//update timer because we got notified that sender(next ip) is present.
-						if(advEntry.getNextHop() == sender){
-							advEntry.setLifeTime(Simulator::Now());
-							routingTable.updateRoute(advEntry);
-						}
-						advRoutingTable.deleteRouteEntry(header.getSrcIp());
+						advRoutingTable.deleteEvent(header.getSrcIp());
 					}
 				}
 			}else{
-				if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
-					advRoutingTable.deleteEvent(header.getSrcIp());
+				if(sender == advEntry.getNextHop()){
+					std::map<Ipv4Address,RoutingTableEntry> dstsWithNextHopSrc;
+					routingTable.getListOfAddressWithNextHop(header.getSrcIp(),dstsWithNextHopSrc);
+					routingTable.deleteRouteEntry(header.getSrcIp());
+					advEntry.setSeqNumber(header.getSeqNo());
+					advEntry.setChangedState(true);
+					advRoutingTable.updateRoute(advEntry);
+					for(auto i = dstsWithNextHopSrc.begin();i!=dstsWithNextHopSrc.end();i++){
+						i->second.setSeqNumber(i->second.getSeqNumber()+1);
+						i->second.setChangedState(true);
+						advRoutingTable.addRouteEntry(i->second);
+						routingTable.deleteRouteEntry(i->second.getDsptIp());
+					}
+				}else{
+					if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
+						advRoutingTable.deleteRouteEntry(header.getSrcIp());
+					}
 				}
 			}
+
 			Simulator::Schedule(MicroSeconds(random_variable->GetInteger(0,1000)),&RoutingProtocol::SendTriggeredUpdate,this);
 		}
 	}
@@ -240,7 +264,8 @@ void RoutingProtocol::SendTriggeredUpdate(){
 				header.setMetric(i->second.getMetric().getMagnitude()+1);
 				temp.setChangedState(false);
 				advRoutingTable.deleteEvent(temp.getDsptIp());
-				routingTable.updateRoute(temp);
+				if(!(temp.getSeqNumber()%2))
+					routingTable.updateRoute(temp);
 				packet->AddHeader(header);
 				advRoutingTable.deleteRouteEntry(temp.getDsptIp());
 			}
@@ -317,8 +342,10 @@ void RoutingProtocol::mergeTriggerPeriodicUpdates(){
 		for(auto itr = allRoutes.begin();itr!=allRoutes.end();itr++){
 			RoutingTableEntry advEntry= itr->second;
 			if(advEntry.isChanged() && (!advRoutingTable.anyRunningEvent(advEntry.getDsptIp()))){
-				advEntry.setChangedState(false);
-				routingTable.updateRoute(advEntry);
+				if(!(advEntry.getSeqNumber()%2)){
+					advEntry.setChangedState(false);
+					routingTable.updateRoute(advEntry);
+				}
 				advRoutingTable.deleteRouteEntry(advEntry.getDsptIp());
 			}
 		}

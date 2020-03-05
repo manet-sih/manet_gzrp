@@ -162,3 +162,6 @@ bool RoutingTable::anyRunningEvent(ns3::Ipv4Address addr){
 }
 void RoutingTable::purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAddresses){
 }
+void RoutingTable::getListOfAddressWithNextHop(ns3::Ipv4Address addr,std::map<ns3::Ipv4Address,RoutingTableEntry> map){
+	map.clear();
+}
