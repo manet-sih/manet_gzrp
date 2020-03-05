@@ -146,8 +146,8 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 			routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
 			continue;
 		}
-		RoutingTableEntry existingEntry;
-		bool entryFound = routingTable.search(header.getSrcIp(),existingEntry);
+		RoutingTableEntry fwdEntry,advEntry;
+		bool entryFound = routingTable.search(header.getSrcIp(),fwdEntry);
 		if(entryFound == false){
 			RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
 			routingTable.addRouteEntry(re);
@@ -157,47 +157,64 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 				routingTable.addZoneIp(header.getSrcIp(),zones);
 			}
 		}else{
-			if(header.getSeqNo() > existingEntry.getSeqNumber()){
-				if(routingTable.deleteEvent(header.getSrcIp())){
+			//Adding route in advRoutingTable if not present in advRoutinTable but present in routingTable
+			if(!advRoutingTable.search(header.getSrcIp(),advEntry)){
+				advRoutingTable.addRouteEntry(fwdEntry);
+				advRoutingTable.search(header.getSrcIp(),advEntry);
+			}
+			if(header.getSeqNo() > advEntry.getSeqNumber()){
+				if(advRoutingTable.deleteEvent(header.getSrcIp())){
 					//Print Cancelling Timer
 				}
-				if(header.getMetric() != existingEntry.getMetric().getMagnitude()) {
-					existingEntry.setSeqNumber(header.getSeqNo());
-					existingEntry.setLifeTime(Simulator::Now());
-					existingEntry.setChangedState(true);
-					existingEntry.setNextHop(sender);
+				if(header.getMetric() != advEntry.getMetric().getMagnitude()) {
+					advEntry.setSeqNumber(header.getSeqNo());
+					advEntry.setLifeTime(Simulator::Now());
+					advEntry.setChangedState(true);
+					advEntry.setNextHop(sender);
 					Metric met(header.getMetric());
-					existingEntry.setMetric(met);
-					existingEntry.setSettlingTime(settlingTime);
+					advEntry.setMetric(met);
+					advEntry.setSettlingTime(settlingTime);
 					event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
-					routingTable.addEvent(header.getSrcIp(),event);
-					routingTable.updateRoute(existingEntry);
+					advRoutingTable.addEvent(header.getSrcIp(),event);
+					routingTable.updateRoute(advEntry);
+					advRoutingTable.updateRoute(advEntry);
 				}else{
-					existingEntry.setSeqNumber(header.getSeqNo());
-					existingEntry.setLifeTime(Simulator::Now());
-					existingEntry.setChangedState(true);
-					existingEntry.setNextHop(sender);
+					advEntry.setSeqNumber(header.getSeqNo());
+					advEntry.setLifeTime(Simulator::Now());
+					advEntry.setChangedState(true);
+					advEntry.setNextHop(sender);
 					Metric met(header.getMetric());
-					existingEntry.setMetric(met);
-					routingTable.updateRoute(existingEntry);
+					advEntry.setMetric(met);
+					advRoutingTable.updateRoute(advEntry);
 				}
-			}else if(header.getSeqNo() == existingEntry.getSeqNumber()){
-				if(header.getMetric()<existingEntry.getMetric().getMagnitude()){
+			}else if(header.getSeqNo() == fwdEntry.getSeqNumber()){
+				if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
 					//print to cancel timer
-					routingTable.deleteEvent(header.getSrcIp());
-					existingEntry.setSeqNumber(header.getSeqNo());
-					existingEntry.setLifeTime(Simulator::Now());
-					existingEntry.setChangedState(true);
-					existingEntry.setNextHop(sender);
+					advRoutingTable.deleteEvent(header.getSrcIp());
+					advEntry.setSeqNumber(header.getSeqNo());
+					advEntry.setLifeTime(Simulator::Now());
+					advEntry.setChangedState(true);
+					advEntry.setNextHop(sender);
 					Metric met(header.getMetric());
-					existingEntry.setMetric(met);
-					existingEntry.setSettlingTime(settlingTime);
+					advEntry.setMetric(met);
+					advEntry.setSettlingTime(settlingTime);
 					event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
-					routingTable.addEvent(header.getSrcIp(),event);
-					routingTable.updateRoute(existingEntry);
+					advRoutingTable.addEvent(header.getSrcIp(),event);
+					routingTable.updateRoute(advEntry);
+					advRoutingTable.updateRoute(advEntry);
 				}else{
-					existingEntry.setLifeTime(Simulator::Now());
-					routingTable.updateRoute(existingEntry);
+					if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
+						//update timer because we got notified that sender(next ip) is present.
+						if(advEntry.getNextHop() == sender){
+							advEntry.setLifeTime(Simulator::Now());
+							routingTable.updateRoute(advEntry);
+						}
+						advRoutingTable.deleteRouteEntry(header.getSrcIp());
+					}
+				}
+			}else{
+				if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
+					advRoutingTable.deleteEvent(header.getSrcIp());
 				}
 			}
 			Simulator::Schedule(MicroSeconds(random_variable->GetInteger(0,1000)),&RoutingProtocol::SendTriggeredUpdate,this);

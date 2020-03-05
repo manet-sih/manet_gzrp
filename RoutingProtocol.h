@@ -6,6 +6,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		ns3::Ipv4Address nodeAddress;
 		ns3::Ptr<ns3::Ipv4> ptrIp;
 		RoutingTable routingTable;
+		RoutingTable advRoutingTable;
 		std::map<ns3::Ptr<ns3::Socket>,ns3::Ipv4InterfaceAddress> intrazoneSocketMap;
 		std::map<ns3::Ptr<ns3::Socket>,ns3::Ipv4InterfaceAddress> interzoneSocketMap;
 		std::map<ns3::Ipv4Address,uint32_t> serviceMap;
