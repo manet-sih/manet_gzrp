@@ -31,5 +31,6 @@ class RoutingTable{
 		bool deleteZoneIp(ns3::Ipv4Address ip,uint32_t zone);
 		bool deleteIpFromZoneMap(ns3::Ipv4Address ip);
 		bool anyRunningEvent(ns3::Ipv4Address);
+		void purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAddresses);
 };
 		

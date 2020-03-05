@@ -160,3 +160,5 @@ bool RoutingTable::anyRunningEvent(ns3::Ipv4Address addr){
 	if(itr->second.IsRunning()) return true;
 	return false;
 }
+void RoutingTable::purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAddresses){
+}

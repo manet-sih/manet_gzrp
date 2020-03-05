@@ -263,6 +263,68 @@ void RoutingProtocol::SendTriggeredUpdate(){
 	}
 }
 
+void RoutingProtocol::sendPeriodicUpdates(){
+	std::map<Ipv4Address,RoutingTableEntry> removedAddresses,allRoutes;
+	routingTable.purge(removedAddresses);
+	mergeTriggerPeriodicUpdates();
+	routingTable.getAllRoutes(allRoutes);
+	if(allRoutes.empty()) return;
+	for(auto j = intrazoneSocketMap.begin();j!=intrazoneSocketMap.end();j++){
+		Ptr<Socket> socket = j->first;
+		Ipv4InterfaceAddress iface = j->second;
+		Ptr<Packet> packet = Create<Packet>();
+		for(auto i = allRoutes.begin();i!=allRoutes.end();i++){
+			GzrpPacket header;
+			if(i->second.getMetric().getMagnitude() == 0){
+				RoutingTableEntry ownEntry;
+				header.setSrcIp(ptrIp->GetAddress(1,0).GetLocal());
+				header.setSeqNo(i->second.getSeqNumber()+2);
+				header.setMetric(i->second.getMetric().getMagnitude()+1);
+				routingTable.search(ptrIp->GetAddress(1,0).GetBroadcast(),ownEntry);
+				ownEntry.setSeqNumber(header.getSeqNo());
+				routingTable.updateRoute(ownEntry);
+				packet->AddHeader(header);
+			}else{
+				header.setSrcIp(i->second.getDsptIp());
+				header.setSeqNo(i->second.getSeqNumber());
+				header.setMetric(i->second.getMetric().getMagnitude()+1);
+				packet->AddHeader(header);
+			}
+		}
+		for(auto itr = removedAddresses.begin();itr!=removedAddresses.end();itr++){
+			GzrpPacket removedHeader;
+			removedHeader.setSrcIp(itr->second.getDsptIp());
+			removedHeader.setSeqNo(itr->second.getSeqNumber()+1);
+			removedHeader.setMetric(itr->second.getMetric().getMagnitude()+1);
+			packet->AddHeader(removedHeader);
+		}
+		socket->Send(packet);
+		Ipv4Address destination;
+		if(iface.GetMask()==Ipv4Mask::GetOnes()){
+			destination = Ipv4Address("255.255.255.255");
+		}else{
+			destination = iface.GetBroadcast();
+		}
+		socket->SendTo(packet,0,InetSocketAddress(destination,INTRAZONE_PORT));
+	}
+	updateTimer.Schedule(periodicUpdateInterval+MicroSeconds(25*random_variable->GetInteger(0,1000)));
+}
+
+void RoutingProtocol::mergeTriggerPeriodicUpdates(){
+	std::map<Ipv4Address,RoutingTableEntry> allRoutes;
+	advRoutingTable.getAllRoutes(allRoutes);
+	if(allRoutes.size()>0){
+		for(auto itr = allRoutes.begin();itr!=allRoutes.end();itr++){
+			RoutingTableEntry advEntry= itr->second;
+			if(advEntry.isChanged() && (!advRoutingTable.anyRunningEvent(advEntry.getDsptIp()))){
+				advEntry.setChangedState(false);
+				routingTable.updateRoute(advEntry);
+				advRoutingTable.deleteRouteEntry(advEntry.getDsptIp());
+			}
+		}
+	}
+}
+
 /*
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){
 	if(socketToInterfaceMap.empty())  return false;

@@ -1,5 +1,6 @@
 #include <ns3/ipv4-routing-protocol.h>
 #include <ns3/random-variable-stream.h>
+#include <ns3/timer.h>
 #include "RoutingTable.h"
 class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 	private:
@@ -11,9 +12,11 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		std::map<ns3::Ptr<ns3::Socket>,ns3::Ipv4InterfaceAddress> interzoneSocketMap;
 		std::map<ns3::Ipv4Address,uint32_t> serviceMap;
 		ns3::Time settlingTime;
+		ns3::Timer updateTimer;
+		ns3::Time periodicUpdateInterval;
+		ns3::Ptr<ns3::UniformRandomVariable> random_variable;
 		uint32_t myZoneId;
 	private:
-		ns3::Ptr<ns3::UniformRandomVariable> random_variable;
 		void start(); //not implemented
 		ns3::Ptr<ns3::Socket> findInterzoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented
 		ns3::Ptr<ns3::Socket> findIntrazoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented
@@ -27,6 +30,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		void drop(ns3::Ptr<const ns3::Packet>, const ns3::Ipv4Header &, ns3::Socket::SocketErrno); //not implemented
 		void send(ns3::Ptr<ns3::Ipv4Route>, ns3::Ptr<const ns3::Packet>, const ns3::Ipv4Header &); //not implemented
 		void sendPeriodicUpdates(); //not implemented
+		void mergeTriggerPeriodicUpdates();
 	public:	
 		RoutingProtocol();//not implemented
 		~RoutingProtocol();//not implemented
