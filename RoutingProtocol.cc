@@ -56,7 +56,7 @@ void RoutingProtocol::NotifyInterfaceUp(uint32_t interface){
 	interzoneSocketMap.insert (std::make_pair (interzoneSocket,iface));
 	//add entry to routing table
 	ns3::Ptr<ns3::NetDevice> dev = ptrIp->GetNetDevice (ptrIp->GetInterfaceForAddress (iface.GetLocal ()));
-	RoutingTableEntry rt ( iface.GetBroadcast (),  0,Metric(0), iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime (),dev);
+	RoutingTableEntry rt (dev, iface.GetBroadcast (),  0,Metric(0), iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime ());
 	routingTable.addRouteEntry (rt);
 	if (nodeAddress == ns3::Ipv4Address ()){
 		nodeAddress = iface.GetLocal ();
@@ -78,7 +78,7 @@ void RoutingProtocol::NotifyAddAddress(uint32_t interfaceNo,ns3::Ipv4InterfaceAd
 		socket->SetAllowBroadcast (true);
 		intrazoneSocketMap.insert (std::make_pair (socket,iface));
 		ns3::Ptr<ns3::NetDevice> dev = ptrIp->GetNetDevice (ptrIp->GetInterfaceForAddress (iface.GetLocal ()));
-		RoutingTableEntry rt ( iface.GetBroadcast (), 0, Metric(0),iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime (),dev); 
+		RoutingTableEntry rt (dev, iface.GetBroadcast (), 0, Metric(0),iface, iface.GetBroadcast (),  ns3::Simulator::GetMaximumSimulationTime ()); 
 		routingTable.addRouteEntry (rt);
 	}
 	ns3::Ptr<ns3::Socket> interzoneSocket = RoutingProtocol::findInterzoneSocket (iface);
@@ -130,6 +130,7 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 	Ipv4Address receiver = intrazoneSocketMap[socket].GetLocal();
 	Ptr<NetDevice> dev = ptrIp->GetNetDevice(ptrIp->GetInterfaceForAddress(receiver));
 	routingTable.deleteAllInvalidRoutes();
+	EventId event;
 	uint32_t packetSize = packet->GetSize();
 	while(packetSize>0){
 		GzrpPacket header;
@@ -143,11 +144,12 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 		if(count>0) continue;
 		if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
 			routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+			continue;
 		}
 		RoutingTableEntry existingEntry;
 		bool entryFound = routingTable.search(header.getSrcIp(),existingEntry);
 		if(entryFound == false){
-			RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric()+1,ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
+			RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
 			routingTable.addRouteEntry(re);
 			std::set<uint32_t> neighbourSet;
 			header.getNeighbourZones(neighbourSet);
@@ -155,6 +157,50 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 				routingTable.addZoneIp(header.getSrcIp(),zones);
 			}
 		}else{
+			if(header.getSeqNo() > existingEntry.getSeqNumber()){
+				if(routingTable.deleteEvent(header.getSrcIp())){
+					//Print Cancelling Timer
+				}
+				if(header.getMetric() != existingEntry.getMetric().getMagnitude()) {
+					existingEntry.setSeqNumber(header.getSeqNo());
+					existingEntry.setLifeTime(Simulator::Now());
+					existingEntry.setChangedState(true);
+					existingEntry.setNextHop(sender);
+					Metric met(header.getMetric());
+					existingEntry.setMetric(met);
+					existingEntry.setSettlingTime(settlingTime);
+					event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+					routingTable.addEvent(header.getSrcIp(),event);
+					routingTable.updateRoute(existingEntry);
+				}else{
+					existingEntry.setSeqNumber(header.getSeqNo());
+					existingEntry.setLifeTime(Simulator::Now());
+					existingEntry.setChangedState(true);
+					existingEntry.setNextHop(sender);
+					Metric met(header.getMetric());
+					existingEntry.setMetric(met);
+					routingTable.updateRoute(existingEntry);
+				}
+			}else if(header.getSeqNo() == existingEntry.getSeqNumber()){
+				if(header.getMetric()<existingEntry.getMetric().getMagnitude()){
+					//print to cancel timer
+					routingTable.deleteEvent(header.getSrcIp());
+					existingEntry.setSeqNumber(header.getSeqNo());
+					existingEntry.setLifeTime(Simulator::Now());
+					existingEntry.setChangedState(true);
+					existingEntry.setNextHop(sender);
+					Metric met(header.getMetric());
+					existingEntry.setMetric(met);
+					existingEntry.setSettlingTime(settlingTime);
+					event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+					routingTable.addEvent(header.getSrcIp(),event);
+					routingTable.updateRoute(existingEntry);
+				}else{
+					existingEntry.setLifeTime(Simulator::Now());
+					routingTable.updateRoute(existingEntry);
+				}
+			}
+			Simulator::Schedule(MicroSeconds(random_variable->GetInteger(0,1000)),&RoutingProtocol::SendTriggeredUpdate,this);
 		}
 	}
 }

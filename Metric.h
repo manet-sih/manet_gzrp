@@ -17,4 +17,7 @@ class Metric{
 		Metric operator+(int32_t num){
 			return Metric(hopsCount+num);
 		}
+		bool operator!=(const Metric& met){
+			return hopsCount!=met.hopsCount;
+		}
 };

@@ -1,4 +1,5 @@
 #include <ns3/ipv4-routing-protocol.h>
+#include <ns3/random-variable-stream.h>
 #include "RoutingTable.h"
 class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 	private:
@@ -11,9 +12,11 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		ns3::Time settlingTime;
 		uint32_t myZoneId;
 	private:
+		ns3::Ptr<ns3::UniformRandomVariable> random_variable;
 		void start(); //not implemented
 		ns3::Ptr<ns3::Socket> findInterzoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented
 		ns3::Ptr<ns3::Socket> findIntrazoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented
+		void SendTriggeredUpdate();
 		void recvUpdates(ns3::Ptr<ns3::Socket> socket); //not implemented
 		void recvInterzoneControlPackets(ns3::Ptr<ns3::Socket> socket); //not implemented
 		uint32_t getZoneId() const; //not implemented
@@ -27,8 +30,6 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		RoutingProtocol();//not implemented
 		~RoutingProtocol();//not implemented
    		static ns3::TypeId GetTypeId (void);//extra
-
-	
   		static const uint32_t INTRAZONE_PORT;
   		static const uint32_t INTERZONE_PORT;
 		virtual void NotifyAddAddress(uint32_t interface,ns3::Ipv4InterfaceAddress); //implemented
