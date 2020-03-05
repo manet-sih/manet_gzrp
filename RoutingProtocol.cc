@@ -225,7 +225,7 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 void RoutingProtocol::SendTriggeredUpdate(){
 	//print log to send triggered update
 	std::map<Ipv4Address,RoutingTableEntry> allRoutes;
-	routingTable.getAllRoutes(allRoutes);
+	advRoutingTable.getAllRoutes(allRoutes);
 	for(auto j = intrazoneSocketMap.begin();j!=intrazoneSocketMap.end();j++){
 		GzrpPacket header;
 		Ptr<Socket> socket = j->first;
@@ -234,16 +234,31 @@ void RoutingProtocol::SendTriggeredUpdate(){
 		for(auto i = allRoutes.begin();i!=allRoutes.end();i++){
 			//print about sending packet
 			RoutingTableEntry temp = i->second;
-			if((i->second.isChanged())&&!(routingTable.anyRunningEvent(temp.getDsptIp()))){
+			if((i->second.isChanged())&&!(advRoutingTable.anyRunningEvent(temp.getDsptIp()))){
 				header.setSrcIp(i->second.getDsptIp());
 				header.setSeqNo(i->second.getSeqNumber());
 				header.setMetric(i->second.getMetric().getMagnitude()+1);
 				temp.setChangedState(false);
-				routingTable.deleteEvent(temp.getDsptIp());
+				advRoutingTable.deleteEvent(temp.getDsptIp());
 				routingTable.updateRoute(temp);
 				packet->AddHeader(header);
-				//routingTable.deleteRouteEntry(temp.getDsptIp());
+				advRoutingTable.deleteRouteEntry(temp.getDsptIp());
 			}
+		}
+		if(packet->GetSize()>=20){
+			RoutingTableEntry temp2;
+			routingTable.search(ptrIp->GetAddress(1,0).GetBroadcast(),temp2);
+			header.setSrcIp(ptrIp->GetAddress(1,0).GetLocal());
+			header.setSeqNo(temp2.getSeqNumber());
+			header.setMetric((temp2.getMetric()+1).getMagnitude());
+			packet->AddHeader(header);
+			Ipv4Address destination;
+			if(iface.GetMask() == Ipv4Mask::GetOnes()){
+				destination = Ipv4Address("255.255.255.255");
+			}else{
+				destination = iface.GetBroadcast();
+			}
+			socket->SendTo(packet,0,InetSocketAddress(destination,INTRAZONE_PORT));
 		}
 	}
 }
