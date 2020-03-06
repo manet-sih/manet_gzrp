@@ -76,4 +76,6 @@ Metric RoutingTableEntry:: getMetric()
 inline void RoutingTableEntry::setRoute(ns3::Ptr<ns3::Ipv4Route> route){
 	this->route = route;
 }
-
+void RoutingTableEntry::print(ns3::Ptr<ns3::OutputStreamWrapper> stream){
+	*stream->GetStream()<<std::setiosflags(std::ios::fixed)<<route->GetDestination()<<"\t\t"<<route->GetGateway()<<"\t\t"<<outputLinkInterface.GetLocal()<<"\t\t"<<std::setiosflags(std::ios::left)<<std::setw(10)<<metric.getMagnitude()<<"\t"<<std::setw(10)<<seqNumber<<"\t"<<std::setprecision(3)<<(ns3::Simulator::Now()-lifeTime).GetSeconds()<<"s\t\t"<<settlingTime.GetSeconds()<<"s\n";
+}

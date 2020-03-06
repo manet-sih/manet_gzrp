@@ -191,3 +191,10 @@ void RoutingTable::getListOfAddressWithNextHop(ns3::Ipv4Address addr,std::map<ns
 			map.insert(std::make_pair(i->first,i->second));
 	}
 }
+void RoutingTable::print(ns3::Ptr<ns3::OutputStreamWrapper> stream) const{
+	*stream->GetStream()<<"\nRouting Table\n"<<"Destination\tGateway\tInterface\t\tMetric\t\tSeqNum\t\tLifeTime\t\tSettlingTime\n";
+	for(auto i = rTable.begin();i!=rTable.end();i++){
+		i->second.print(stream);
+	}
+	*stream->GetStream()<<"\n";
+}

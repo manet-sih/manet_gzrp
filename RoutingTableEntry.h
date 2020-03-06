@@ -1,3 +1,5 @@
+#include <iomanip>
+#include <ns3/output-stream-wrapper.h>
 #include <ns3/ipv4-address.h>
 #include <ns3/ipv4-interface-container.h>
 #include <ns3/nstime.h>
@@ -51,7 +53,7 @@ class RoutingTableEntry{
 		}
 		inline void setNextHop(ns3::Ipv4Address hop) ;
 		inline void setRoute(ns3::Ptr<ns3::Ipv4Route> route);
-
+		void print(ns3::Ptr<ns3::OutputStreamWrapper> stream);
 };
 
 
