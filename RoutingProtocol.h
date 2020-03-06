@@ -2,6 +2,7 @@
 #include <ns3/random-variable-stream.h>
 #include <ns3/timer.h>
 #include "RoutingTable.h"
+#include <ns3/node.h>
 class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 	private:
 		ns3::Ipv4Address nodeAddress;
@@ -34,12 +35,13 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		void send(ns3::Ptr<ns3::Ipv4Route>, ns3::Ptr<const ns3::Packet>, const ns3::Ipv4Header &); //not implemented
 		void sendPeriodicUpdates(); //not implemented
 		void mergeTriggerPeriodicUpdates();
+		int64_t assignStreams(int64_t stream);
 	public:	
 		RoutingProtocol();//not implemented
-		~RoutingProtocol();//not implemented
    		static ns3::TypeId GetTypeId (void);//extra
   		static const uint32_t INTRAZONE_PORT;
   		static const uint32_t INTERZONE_PORT;
+		virtual void PrintRoutingTable(ns3::Ptr<ns3::OutputStreamWrapper> stream,ns3::Time::Unit unit) const;
 		virtual void NotifyAddAddress(uint32_t interface,ns3::Ipv4InterfaceAddress); //implemented
 		virtual void NotifyRemoveAddress(uint32_t interfaceNo, ns3::Ipv4InterfaceAddress);//implemented
 		virtual void NotifyInterfaceUp(uint32_t );//implemented

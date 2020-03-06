@@ -1,3 +1,4 @@
+#include <ns3/object.h>
 #include "RoutingProtocol.h" 
 #include "gzrppacket.h"
 #include "ns3/uinteger.h"
@@ -389,151 +390,15 @@ RoutingProtocol::RoutingProtocol():
 		random_variable = CreateObject<UniformRandomVariable>();
 	}
 
-/*
-bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){
-	if(socketToInterfaceMap.empty())  return false;
-	ns3::Ipv4Address src=header.GetSource();
-	ns3::Ipv4Address dst=header.GetDestination();
-	for(auto itr =socketToInterfaceMap.begin();itr!=socketToInterfaceMap.end();itr++)
-	{
-		if( src == (itr->second).GetLocal())
-			return true;
-	}
-	RoutingTableEntry rte;
-	for(auto itr = socketToInterfaceMap.begin();itr != socketToInterfaceMap.end();itr++){
-		ns3::Ipv4InterfaceAddress ifaceAddr = itr->second;
-		if(ptrIp->GetInterfaceForAddress(ifaceAddr.GetLocal()) == ptrIp->GetInterfaceForDevice(idev)){
-			if(dst == ifaceAddr.GetBroadcast() || dst.IsBroadcast()){
-				ns3::Ptr<ns3::Packet> packet =  p->Copy();
-				if(lcb.IsNull() == false){
-					lcb(p,header,ptrIp->GetInterfaceForDevice(idev));
-				}
-				else{
-					ecb(p,header,ns3::Socket::ERROR_NOROUTETOHOST);
-				}
-				if(header.GetTtl() > 1){
-					RoutingTableEntry toBroadcast;
-					if(routingTable.search(dst,toBroadcast)){
-						ns3::Ptr<ns3::Ipv4Route> route = toBroadcast.getRoute();
-						ucb(route,packet,header);
-					}
-					else{
-						//drop packet
-					}
-				}
-				return true;
-			}
-		}
-	}
-
-	RoutingTableEntry toDst;
-	if (routingTable.search(dst,toDst))
-	{
-		RoutingTableEntry ne;
-		if (routingTable.search(toDst.getNextHop(),ne))
-		{
-			ns3::Ptr<ns3::Ipv4Route> route = ne.getRoute ();
-		}
-	}
-	else{ 
-		//we will direct this packet for interzone processsing
-	}   
+void RoutingProtocol::PrintRoutingTable(ns3::Ptr<ns3::OutputStreamWrapper> stream,ns3::Time::Unit unit) const{
+	*stream->GetStream()<<"Node: "<<ptrIp->GetObject<Node>()->GetId()
+		<<", Time: "<<Now().As(unit)
+		<<", Local time: "<<GetObject<Node>()->GetLocalTime().As(unit)
+		<<", Routing table"<<std::endl;
+	routingTable.print(stream);
+	*stream->GetStream()<<std::endl;
 }
-void RoutingProtocol::DoDispose(){
-	for(auto itr = socketToInterfaceMap.cbegin();itr != socketToInterfaceMap.cend();itr++){
-		(itr->first)->Close();
-	}
-	socketToInterfaceMap.clear();
-	ns3::Ipv4RoutingProtocol::DoDispose();
+int64_t RoutingProtocol::assignStreams(int64_t stream){
+	random_variable->SetStream(stream);
+	return 1;
 }
-bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p,
-                              const ns3::Ipv4Header &header,
-                              ns3::Ptr<const ns3::NetDevice> idev,
-                              UnicastForwardCallback ucb,
-                              MulticastForwardCallback mcb,
-                              LocalDeliverCallback lcb,
-                              ErrorCallback ecb)
- {
-      if(socketToInterfaceMap.empty())  return false;
-      ns3::Ipv4Address src=header.GetSource();
-      ns3::Ipv4Address dst=header.GetDestination();
-      for(auto itr =socketToInterfaceMap.begin();itr!=socketToInterfaceMap.end();itr++)
-      {
-          if( src == (itr->second).GetLocal())
-            return true;
-      }
-      
-      RoutingTableEntry rte;
-      
-     
-         RoutingTableEntry toDst;
-   if (routingTable.search(dst,toDst))
-     {
-       RoutingTableEntry ne;
-       if (routingTable.search(toDst.getNextHop(),ne))
-         {
-           ns3::Ptr<ns3::Ipv4Route> route = ne.getRoute ();
-       
-           ucb (route,p,header);
-           return true;
-         }
-          else
-      { //we will direct this packet for interzone processsing
-      }
-      
-     } 
-     
-
-     
-      
-}
-ns3::Ptr<ns3::Ipv4Route> RoutingProtocol::RouteOutput (ns3::Ptr<ns3::Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<ns3::NetDevice> oif,ns3::Socket::SocketErrno &sockerr)
-{
-   if (!p)
-     {
-       return RoutingProtocol::LoopbackRoute(header,oif);
-     }
-     if (socketToInterfaceMap.empty ())
-     {
-       
-       ns3::Ptr<ns3::Ipv4Route> route;
-       return route;
-     }
-      RoutingTableEntry rt;
-      ns3::Ipv4Address dst = header.GetDestination ();
-      if( routingTable.search(header.GetDestination (),rt))
-      {
-         ns3::Ptr<ns3::Ipv4Route> route=rt.getRoute();
-          if(rt.getHopsCount()==1)
-            {
-               
-              if (oif != 0 && route->GetOutputDevice () != oif)
-                  return ns3::Ptr<ns3::Ipv4Route>();
-            }
-            return route;
-      }
-      else{
-             RoutingTableEntry rti;
-            if(routingTable.search(rt.getNextHop(),rti))
-            {
-               ns3::Ptr<ns3::Ipv4Route> route=rti.getRoute();
-               if (oif != 0 && route->GetOutputDevice () != oif)
-               {
-                 return ns3::Ptr<ns3::Ipv4Route>();
-               }
-               return route;
-            }
-             
-             
-            
-      }
-     return LoopbackRoute (header,oif);
-
-}
-void RoutingProtocol::send(ns3::Ptr<ns3::Ipv4Route>route, ns3::Ptr<const ns3::Packet>packet, const ns3::Ipv4Header &header)
-{
-    ns3::Ptr<ns3::Ipv4L3Protocol> l3 =RoutingProtocol::ptrIp->GetObject<ns3::Ipv4L3Protocol> ();
-   NS_ASSERT (l3 != 0);
-   ns3::Ptr<ns3::Packet> p = packet->Copy ();
-   l3->Send (p,route->GetSource (),header.GetDestination (),header.GetProtocol (),route);
-}*/
