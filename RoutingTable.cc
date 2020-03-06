@@ -186,4 +186,8 @@ void RoutingTable::purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAd
 }
 void RoutingTable::getListOfAddressWithNextHop(ns3::Ipv4Address addr,std::map<ns3::Ipv4Address,RoutingTableEntry> map){
 	map.clear();
+	for(auto i= rTable.begin();i!=rTable.end();i++){
+		if(i->second.getNextHop() == addr) 
+			map.insert(std::make_pair(i->first,i->second));
+	}
 }
