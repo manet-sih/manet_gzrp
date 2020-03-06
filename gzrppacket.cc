@@ -46,11 +46,13 @@ uint32_t GzrpPacket::getMetric()const {
 }
 void GzrpPacket::addZone(uint32_t zone){
 	neighbourZones.insert(zone);
+	numKnownZones = neighbourZones.size();
 }
 bool GzrpPacket::deleteZone(uint32_t zone){
 	auto findItr = neighbourZones.find(zone);
 	if(findItr == neighbourZones.end()) return false;
 	neighbourZones.erase(zone);
+	numKnownZones = neighbourZones.size();
 	return true;
 }
 bool GzrpPacket::getNeighbourZones(std::set<uint32_t>& zones) const
@@ -80,7 +82,7 @@ ns3::TypeId GzrpPacket::GetInstanceTypeId () const
 }
 uint32_t GzrpPacket::GetSerializedSize () const
 {
-	return (16 + (4*numKnownZones));
+	return (20 + (4*numKnownZones));
 }
 void GzrpPacket::Serialize (ns3::Buffer::Iterator itr) const
 {
