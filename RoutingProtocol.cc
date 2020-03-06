@@ -352,6 +352,22 @@ void RoutingProtocol::mergeTriggerPeriodicUpdates(){
 	}
 }
 
+void RoutingProtocol::SetIpv4(Ptr<Ipv4> ipv4){
+	NS_ASSERT(ipv4!=0);
+	NS_ASSERT(ptrIp == 0);
+	ptrIp = ipv4;
+	NS_ASSERT(ptrIp->GetNInterfaces() == 1 && ptrIp->GetAddress(0,0).GetLocal() == Ipv4Address("127.0.0.1"));
+	lo = ptrIp->GetNetDevice(0);
+	NS_ASSERT(lo!=0);
+	RoutingTableEntry rt(lo,Ipv4Address::GetLoopback(),0,Metric(0),Ipv4InterfaceAddress(Ipv4Address::GetLoopback(),Ipv4Mask("255.0.0.0")),Ipv4Address::GetLoopback(),Simulator::GetMaximumSimulationTime());
+	rt.setChangedState(false);
+	routingTable.addRouteEntry(rt);
+	Simulator::ScheduleNow(&RoutingProtocol::Start,this);
+}
+void RoutingProtocol::Start(){
+
+}
+
 /*
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){
 	if(socketToInterfaceMap.empty())  return false;
@@ -409,18 +425,6 @@ void RoutingProtocol::DoDispose(){
 	socketToInterfaceMap.clear();
 	ns3::Ipv4RoutingProtocol::DoDispose();
 }
-void RoutingProtocol::recvDsdv(ns3::Ptr<ns3::Socket> socket){
-	ns3::Address srcAddr;
-	ns3::Ptr<ns3::Packet> packet = socket->ns3::Socket::RecvFrom(srcAddr);
-	if (packet == 0) {//print cannot return a next in sequence packet}
-	}
-	ns3::InetSocketAddress inet = ns3::InetSocketAddress::ConvertFrom(srcAddr);
-	ns3::Ipv4Address sender = inet.GetIpv4();
-	ns3::Ipv4Address receiver = socketToInterfaceMap[socket].GetLocal();
-
-
-}
-
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p,
                               const ns3::Ipv4Header &header,
                               ns3::Ptr<const ns3::NetDevice> idev,
@@ -511,61 +515,4 @@ void RoutingProtocol::send(ns3::Ptr<ns3::Ipv4Route>route, ns3::Ptr<const ns3::Pa
    NS_ASSERT (l3 != 0);
    ns3::Ptr<ns3::Packet> p = packet->Copy ();
    l3->Send (p,route->GetSource (),header.GetDestination (),header.GetProtocol (),route);
-}
-void RoutingProtocol::sendPeriodicUpdates()
- {
-    std::map<ns3::Ipv4Address, RoutingTableEntry>allroute;
-    routingTable.getAllRoutes(allroute);
-    if(allroute.empty())
-    {
-      return;
-    }
-     for (std::map<ns3::Ptr<ns3::Socket>, ns3::Ipv4InterfaceAddress>::const_iterator j = socketToInterfaceMap.begin (); j
-        != socketToInterfaceMap.end (); ++j)
-     { ns3::Ptr<ns3::Socket> socket = j->first;
-       ns3::Ipv4InterfaceAddress iface = j->second;
-       ns3::Ptr<ns3::Packet> packet = ns3::Create<ns3::Packet> ();
-       DsdvHeader dsdvHeader;
-          for(auto itr=allroute.begin();itr!=allroute.end();itr++)
-          {
-            
-           if (itr->second.getHopsCount() == 0)
-             {
-               RoutingTableEntry ownEntry;
-               dsdvHeader.set_IP (ptrIp->GetAddress (1,0).GetLocal ());
-               dsdvHeader.set_seq( itr->second.getSeqNumber() + 1);
-               dsdvHeader.set_hops (itr->second.getHopsCount ()+1);
-               dsdvHeader.set_loca(Location(0.0,0.0));
-               routingTable.search(ptrIp->GetAddress (1,0).GetBroadcast (),ownEntry);
-
-               ownEntry.setSeqNumber(dsdvHeader.get_seq());
-              routingTable.updateRoute(ownEntry);
-                packet->AddHeader(dsdvHeader);
-
-             } 
-             else{
-                    dsdvHeader. set_IP (itr->second.getDsptIp());
-               dsdvHeader.set_seq(itr->second.getSeqNumber());
-               dsdvHeader.set_hops(itr->second. getHopsCount () + 1);
-                dsdvHeader.set_loca(Location(0.0,0.0));
-               packet->AddHeader (dsdvHeader);
-             }
-          } 
-          if(dsdvHeader.get_hops()<=RoutingProtocol::zoneRadius)
-             {
-           socket->Send (packet);
-       
-       ns3::Ipv4Address destination;
-       if (iface.GetMask () == ns3::Ipv4Mask::GetOnes ())
-         {
-           destination = ns3::Ipv4Address ("255.255.255.255");
-         }
-       else
-         {
-           destination = iface.GetBroadcast ();
-         }
-       socket->SendTo (packet, 0, ns3::InetSocketAddress (destination, DSDV_PORT)); 
-             }
-        
-     }        
- }*/
+}*/

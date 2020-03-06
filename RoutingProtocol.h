@@ -6,6 +6,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 	private:
 		ns3::Ipv4Address nodeAddress;
 		ns3::Ptr<ns3::Ipv4> ptrIp;
+		ns3::Ptr<ns3::NetDevice> lo;
 		RoutingTable routingTable;
 		RoutingTable advRoutingTable;
 		std::map<ns3::Ptr<ns3::Socket>,ns3::Ipv4InterfaceAddress> intrazoneSocketMap;
@@ -17,7 +18,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		ns3::Ptr<ns3::UniformRandomVariable> random_variable;
 		uint32_t myZoneId;
 	private:
-		void start(); //not implemented
+		void Start(); //not implemented
 		ns3::Ptr<ns3::Socket> findInterzoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented
 		ns3::Ptr<ns3::Socket> findIntrazoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented
 		void SendTriggeredUpdate();
