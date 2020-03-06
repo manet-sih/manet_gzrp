@@ -365,8 +365,29 @@ void RoutingProtocol::SetIpv4(Ptr<Ipv4> ipv4){
 	Simulator::ScheduleNow(&RoutingProtocol::Start,this);
 }
 void RoutingProtocol::Start(){
-
+	unicastCallback = MakeCallback(&RoutingProtocol::send,this);
+	errorCallback = MakeCallback(&RoutingProtocol::drop,this);
+	updateTimer.SetFunction(&RoutingProtocol::sendPeriodicUpdates,this);
+	updateTimer.Schedule(MicroSeconds(random_variable->GetInteger(0,1000)));
 }
+void RoutingProtocol::DoDispose(){
+	ptrIp = 0;
+	for(auto itr = intrazoneSocketMap.begin();itr!=intrazoneSocketMap.end();itr++){
+		itr->first->Close();
+	}
+	intrazoneSocketMap.clear();
+	for(auto itr = interzoneSocketMap.begin();itr!=interzoneSocketMap.end();itr++){
+		itr->first->Close();
+	}
+	interzoneSocketMap.clear();
+	Ipv4RoutingProtocol::DoDispose();
+}
+RoutingProtocol::RoutingProtocol():
+	routingTable(),
+	advRoutingTable(),
+	updateTimer(Timer::CHECK_ON_DESTROY){
+		random_variable = CreateObject<UniformRandomVariable>();
+	}
 
 /*
 bool RoutingProtocol::RouteInput (ns3::Ptr<const ns3:: Packet> p, const ns3::Ipv4Header &header, ns3::Ptr<const ns3::NetDevice> idev, UnicastForwardCallback ucb, MulticastForwardCallback mcb, LocalDeliverCallback lcb, ErrorCallback ecb){

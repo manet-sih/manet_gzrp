@@ -16,6 +16,8 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		ns3::Timer updateTimer;
 		ns3::Time periodicUpdateInterval;
 		ns3::Ptr<ns3::UniformRandomVariable> random_variable;
+		ns3::Ipv4RoutingProtocol::UnicastForwardCallback unicastCallback;
+		ns3::Ipv4RoutingProtocol::ErrorCallback errorCallback;
 		uint32_t myZoneId;
 	private:
 		void Start(); //not implemented
