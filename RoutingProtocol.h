@@ -20,6 +20,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		ns3::Ipv4RoutingProtocol::UnicastForwardCallback unicastCallback;
 		ns3::Ipv4RoutingProtocol::ErrorCallback errorCallback;
 		uint32_t myZoneId;
+		uint32_t holdTime;
 	private:
 		void Start(); //not implemented
 		ns3::Ptr<ns3::Socket> findInterzoneSocket(ns3::Ipv4InterfaceAddress interface) const;	//implemented

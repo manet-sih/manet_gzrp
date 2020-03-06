@@ -130,7 +130,6 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 	Ipv4Address sender = inetSourceAddr.GetIpv4();
 	Ipv4Address receiver = intrazoneSocketMap[socket].GetLocal();
 	Ptr<NetDevice> dev = ptrIp->GetNetDevice(ptrIp->GetInterfaceForAddress(receiver));
-	routingTable.deleteAllInvalidRoutes();
 	EventId event;
 	uint32_t packetSize = packet->GetSize();
 	while(packetSize>0){
@@ -370,6 +369,8 @@ void RoutingProtocol::Start(){
 	errorCallback = MakeCallback(&RoutingProtocol::drop,this);
 	updateTimer.SetFunction(&RoutingProtocol::sendPeriodicUpdates,this);
 	updateTimer.Schedule(MicroSeconds(random_variable->GetInteger(0,1000)));
+	routingTable.setHoldTime(Time(holdTime*periodicUpdateInterval));
+	advRoutingTable.setHoldTime(Time(holdTime*periodicUpdateInterval));
 }
 void RoutingProtocol::DoDispose(){
 	ptrIp = 0;

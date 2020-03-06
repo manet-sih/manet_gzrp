@@ -161,6 +161,28 @@ bool RoutingTable::anyRunningEvent(ns3::Ipv4Address addr){
 	return false;
 }
 void RoutingTable::purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAddresses){
+	if(rTable.empty()) return;
+	for(auto i = rTable.begin();i!=rTable.end();i++){
+		auto iTmp = i;
+		if(i->second.getLifeTime()>holdTime && (i->second.getMetric().getMagnitude()>0)){
+			for(auto j = rTable.begin();j!=rTable.end();j++){
+				if((j->second.getNextHop() == i->second.getDsptIp())&&(i->second.getMetric().getMagnitude() != j->second.getMetric().getMagnitude())){
+					auto jTmp = j;
+					removedAddresses.insert(std::make_pair(j->first,j->second));
+					j++;
+					rTable.erase(jTmp);
+				}else{
+					j++;
+				}
+			}
+			removedAddresses.insert(std::make_pair(i->first,i->second));
+			i++;
+			rTable.erase(iTmp);
+		}else{
+			i++;
+		}
+	}
+	return;
 }
 void RoutingTable::getListOfAddressWithNextHop(ns3::Ipv4Address addr,std::map<ns3::Ipv4Address,RoutingTableEntry> map){
 	map.clear();
