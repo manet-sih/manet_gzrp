@@ -53,7 +53,7 @@ class RoutingTableEntry{
 		}
 		inline void setNextHop(ns3::Ipv4Address hop) ;
 		inline void setRoute(ns3::Ptr<ns3::Ipv4Route> route);
-		void print(ns3::Ptr<ns3::OutputStreamWrapper> stream);
+		void print(ns3::Ptr<ns3::OutputStreamWrapper> stream) const;
 };
 
 

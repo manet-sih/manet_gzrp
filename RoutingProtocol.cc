@@ -142,14 +142,14 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 			if(header.getSrcIp() == interface.GetLocal()) count++;
 		}
 		if(count>0) continue;
-		if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
-			routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
-			continue;
-		}
 		RoutingTableEntry fwdEntry,advEntry;
 		bool entryFound = routingTable.search(header.getSrcIp(),fwdEntry);
 		if(entryFound == false){
 			if(header.getSeqNo() % 2 != 1){
+				if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
+					routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+					continue;
+				}
 				RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
 				routingTable.addRouteEntry(re);
 				std::set<uint32_t> neighbourSet;
@@ -166,6 +166,10 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 			}
 			if(header.getSeqNo() %2 !=1){
 				if(header.getSeqNo() > advEntry.getSeqNumber()){
+					if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
+						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						continue;
+					}
 					if(advRoutingTable.deleteEvent(header.getSrcIp())){
 						//Print Cancelling Timer
 					}
@@ -193,6 +197,11 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 				}else if(header.getSeqNo() == fwdEntry.getSeqNumber()){
 					if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
 						//print to cancel timer
+
+						if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
+							routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+							continue;
+						}
 						advRoutingTable.deleteEvent(header.getSrcIp());
 						advEntry.setSeqNumber(header.getSeqNo());
 						advEntry.setLifeTime(Simulator::Now());
