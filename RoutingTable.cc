@@ -210,3 +210,9 @@ bool RoutingTable::getZonesForIp(std::set<uint32_t> zones,ns3::Ipv4Address addr)
 	}
 	return inserted;
 }
+bool RoutingTable::getAllIpforZone(uint32_t zone,std::set<ns3::Ipv4Address> set){
+	auto itr= knownZonesTable.find(zone);
+	if(itr==knownZonesTable.end()) return false;
+	set = itr->second;
+	return true;
+}
