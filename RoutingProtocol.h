@@ -37,6 +37,7 @@ class RoutingProtocol:public ns3::Ipv4RoutingProtocol{
 		void sendPeriodicUpdates(); //not implemented
 		void mergeTriggerPeriodicUpdates();
 		int64_t assignStreams(int64_t stream);
+		void sendTriggeredLocationUpdate();
 	public:	
 		RoutingProtocol();//not implemented
    		static ns3::TypeId GetTypeId (void);//extra

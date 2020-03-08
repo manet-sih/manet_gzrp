@@ -35,5 +35,7 @@ class RoutingTable{
 		bool anyRunningEvent(ns3::Ipv4Address);
 		void purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAddresses);
 		void print(ns3::Ptr<ns3::OutputStreamWrapper> stream) const;
+		bool getZonesForIp(std::set<uint32_t> zones,ns3::Ipv4Address addr);
+		bool getAllIpforZone(uint32_t zone,std::set<ns3::Ipv4Address> set);
 };
 		

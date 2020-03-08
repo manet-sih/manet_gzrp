@@ -1,3 +1,4 @@
+#include <set>
 #include <ns3/object.h>
 #include "RoutingProtocol.h" 
 #include "gzrppacket.h"
@@ -147,16 +148,37 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 		if(entryFound == false){
 			if(header.getSeqNo() % 2 != 1){
 				if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
-					routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+					std::set<uint32_t> ipSet;
+					routingTable.getZonesForIp(ipSet,header.getSrcIp());
+					if(ipSet.size()==0){
+						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						advRoutingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+					}else if(ipSet.size()!=1 || (*(ipSet.begin()) != header.getZoneId())){
+						routingTable.deleteIpFromZoneMap(header.getSrcIp());
+						advRoutingTable.deleteIpFromZoneMap(header.getSrcIp());
+						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						advRoutingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+					}
 					continue;
+				}else if(header.getZoneId()==getZoneId()){
+					RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
+					if(sender==header.getSrcIp()){
+						routingTable.deleteIpFromZoneMap(header.getSrcIp());
+						advRoutingTable.deleteIpFromZoneMap(header.getSrcIp());
+						std::set<uint32_t> neighbourZones;
+						header.getNeighbourZones(neighbourZones);
+						for(uint32_t i : neighbourZones){
+							routingTable.addZoneIp(header.getSrcIp(),i);
+							advRoutingTable.addZoneIp(header.getSrcIp(),i);
+						}
+					}
+					routingTable.addRouteEntry(re);
+					advRoutingTable.addRouteEntry(re);
 				}
-				RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
-				routingTable.addRouteEntry(re);
-				std::set<uint32_t> neighbourSet;
-				header.getNeighbourZones(neighbourSet);
-				for(uint32_t zones : neighbourSet){
-					routingTable.addZoneIp(header.getSrcIp(),zones);
-				}
+			}else{
+				routingTable.deleteIpFromZoneMap(header.getSrcIp());
 			}
 		}else{
 			//Adding route in advRoutingTable if not present in advRoutinTable but present in routingTable
@@ -167,66 +189,111 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 			if(header.getSeqNo() %2 !=1){
 				if(header.getSeqNo() > advEntry.getSeqNumber()){
 					if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
-						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
-						continue;
-					}
-					if(advRoutingTable.deleteEvent(header.getSrcIp())){
-						//Print Cancelling Timer
-					}
-					if(header.getMetric() != advEntry.getMetric().getMagnitude()) {
-						advEntry.setSeqNumber(header.getSeqNo());
-						advEntry.setLifeTime(Simulator::Now());
-						advEntry.setChangedState(true);
-						advEntry.setNextHop(sender);
-						Metric met(header.getMetric());
-						advEntry.setMetric(met);
-						advEntry.setSettlingTime(settlingTime);
+						routingTable.deleteIpFromZoneMap(header.getSrcIp());
+						advRoutingTable.deleteIpFromZoneMap(header.getSrcIp());
+						routingTable.deleteRouteEntry(header.getSrcIp());
+						advEntry.setEntryState(EntryState::INVALID);
+						advRoutingTable.updateRoute(advEntry);
 						event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
 						advRoutingTable.addEvent(header.getSrcIp(),event);
-						routingTable.updateRoute(advEntry);
-						advRoutingTable.updateRoute(advEntry);
-					}else{
-						advEntry.setSeqNumber(header.getSeqNo());
-						advEntry.setLifeTime(Simulator::Now());
-						advEntry.setChangedState(true);
-						advEntry.setNextHop(sender);
-						Metric met(header.getMetric());
-						advEntry.setMetric(met);
-						advRoutingTable.updateRoute(advEntry);
+						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						advRoutingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						continue;
+					}else if(header.getZoneId() == getZoneId()){
+						if(sender==header.getSrcIp()){
+							std::set<uint32_t> zoneSet;
+							std::set<uint32_t> presentZoneSet;
+							header.getNeighbourZones(zoneSet);
+							routingTable.getZonesForIp(presentZoneSet,header.getSrcIp());
+							bool sendLocationUpdate = false;
+							if(zoneSet!=presentZoneSet){
+								for(uint32_t zone : zoneSet){
+									auto findItr = presentZoneSet.find(zone);
+									if(findItr == presentZoneSet.end()){
+										if(!sendLocationUpdate){
+											std::set<Ipv4Address> ipSet;
+											bool foundIp = routingTable.getAllIpforZone(zone,ipSet);
+											if(!foundIp) sendLocationUpdate = true;
+										}
+										routingTable.addZoneIp(header.getSrcIp(),zone);
+										advRoutingTable.addZoneIp(header.getSrcIp(),zone);
+									}
+								}
+								for(uint32_t zone : presentZoneSet){
+									auto findItr = zoneSet.find(zone);
+									if(findItr == zoneSet.end()){
+										routingTable.deleteZoneIp(header.getSrcIp(),zone);
+										advRoutingTable.deleteZoneIp(header.getSrcIp(),zone);
+										if(!sendLocationUpdate){
+											std::set<Ipv4Address> ipSet;
+											bool foundIp = routingTable.getAllIpforZone(zone,ipSet);
+											if(!foundIp) sendLocationUpdate = true;
+										}
+									}
+								}
+							}
+							if(sendLocationUpdate){
+								Simulator::Schedule(settlingTime,&RoutingProtocol::sendTriggeredLocationUpdate,this);
+							}
+						}
+						if(advRoutingTable.deleteEvent(header.getSrcIp())){
+							//Print Cancelling Timer
+						}
+						if(header.getMetric() != advEntry.getMetric().getMagnitude()) {
+							advEntry.setSeqNumber(header.getSeqNo());
+							advEntry.setLifeTime(Simulator::Now());
+							advEntry.setChangedState(true);
+							advEntry.setNextHop(sender);
+							Metric met(header.getMetric());
+							advEntry.setMetric(met);
+							advEntry.setSettlingTime(settlingTime);
+							event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+							advRoutingTable.addEvent(header.getSrcIp(),event);
+							routingTable.updateRoute(advEntry);
+							advRoutingTable.updateRoute(advEntry);
+						}else{
+							advEntry.setSeqNumber(header.getSeqNo());
+							advEntry.setLifeTime(Simulator::Now());
+							advEntry.setChangedState(true);
+							advEntry.setNextHop(sender);
+							Metric met(header.getMetric());
+							advEntry.setMetric(met);
+							advRoutingTable.updateRoute(advEntry);
+						}
 					}
 				}else if(header.getSeqNo() == fwdEntry.getSeqNumber()){
-					if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
-						//print to cancel timer
+					if(header.getZoneId()==getZoneId()){
+						if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
+							//print to cancel timer
 
-						if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
-							routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
-							continue;
-						}
-						advRoutingTable.deleteEvent(header.getSrcIp());
-						advEntry.setSeqNumber(header.getSeqNo());
-						advEntry.setLifeTime(Simulator::Now());
-						advEntry.setChangedState(true);
-						advEntry.setNextHop(sender);
-						Metric met(header.getMetric());
-						advEntry.setMetric(met);
-						advEntry.setSettlingTime(settlingTime);
-						event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
-						advRoutingTable.addEvent(header.getSrcIp(),event);
-						routingTable.updateRoute(advEntry);
-						advRoutingTable.updateRoute(advEntry);
-					}else{
-						if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
-							//update timer because we got notified that sender(next ip) is present.
-							if(advEntry.getNextHop() == sender){
-								advEntry.setLifeTime(Simulator::Now());
-								routingTable.updateRoute(advEntry);
+							advRoutingTable.deleteEvent(header.getSrcIp());
+							advEntry.setSeqNumber(header.getSeqNo());
+							advEntry.setLifeTime(Simulator::Now());
+							advEntry.setChangedState(true);
+							advEntry.setNextHop(sender);
+							Metric met(header.getMetric());
+							advEntry.setMetric(met);
+							advEntry.setSettlingTime(settlingTime);
+							event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+							advRoutingTable.addEvent(header.getSrcIp(),event);
+							routingTable.updateRoute(advEntry);
+							advRoutingTable.updateRoute(advEntry);
+						}else{
+							if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
+								//update timer because we got notified that sender(next ip) is present.
+								if(advEntry.getNextHop() == sender){
+									advEntry.setLifeTime(Simulator::Now());
+									routingTable.updateRoute(advEntry);
+								}
+								advRoutingTable.deleteRouteEntry(header.getSrcIp());
 							}
-							advRoutingTable.deleteRouteEntry(header.getSrcIp());
 						}
 					}
 				}else{
-					if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
-						advRoutingTable.deleteEvent(header.getSrcIp());
+					if(header.getZoneId()==getZoneId()){
+						if(!advRoutingTable.anyRunningEvent(header.getSrcIp())){
+							advRoutingTable.deleteEvent(header.getSrcIp());
+						}
 					}
 				}
 			}else{

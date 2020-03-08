@@ -14,6 +14,7 @@ RoutingTableEntry::RoutingTableEntry(ns3::Ptr<ns3::NetDevice> dev,ns3::Ipv4Addre
 	route->SetDestination(srcIp);
 	route->SetSource(outputLinkInterface.GetLocal());
 	route->SetOutputDevice(dev);
+	this->state = EntryState::VALID;
 }
 RoutingTableEntry::RoutingTableEntry(){
 }	

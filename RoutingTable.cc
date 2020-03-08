@@ -198,3 +198,15 @@ void RoutingTable::print(ns3::Ptr<ns3::OutputStreamWrapper> stream) const{
 	}
 	*stream->GetStream()<<"\n";
 }
+bool RoutingTable::getZonesForIp(std::set<uint32_t> zones,ns3::Ipv4Address addr){
+	zones.clear();
+	bool inserted = false;
+	for(auto itr = knownZonesTable.begin();itr!=knownZonesTable.end();itr++){
+		std::set<ns3::Ipv4Address> set = itr->second;
+		auto findItr = set.find(addr);
+		if(findItr==set.end()) continue;
+		zones.insert(itr->first);
+		inserted = true;
+	}
+	return inserted;
+}
