@@ -10,6 +10,7 @@ class RoutingTable{
 		ns3::Time holdTime;
 		std::map<uint32_t,std::set<ns3::Ipv4Address>>knownZonesTable;
 		bool deleteZoneIp(ns3::Ipv4Address ip,std::map<uint32_t,std::set<ns3::Ipv4Address>>::iterator findItr);
+		std::map<ns3::Ipv4Address,ns3::Time> zoneLifeMap;
 	public:
 		RoutingTable();
 		void getListOfAddressWithNextHop(ns3::Ipv4Address addr,std::map<ns3::Ipv4Address,RoutingTableEntry>); 
@@ -38,5 +39,10 @@ class RoutingTable{
 		bool getZonesForIp(std::set<uint32_t> zones,ns3::Ipv4Address addr);
 		bool getAllIpforZone(uint32_t zone,std::set<ns3::Ipv4Address> set);
 		bool getZoneList(std::set<uint32_t> zones);
+		bool addIpLife(ns3::Ipv4Address addr, ns3::Time time);
+		bool searchIpLife(ns3::Ipv4Address addr,ns3::Time& time);
+		bool deleteIpLife(ns3::Ipv4Address addr);
+		bool updateIpLife(ns3::Ipv4Address addr, ns3::Time time);
+		bool deleteExpiredZoneIP();
 };
 		

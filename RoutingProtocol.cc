@@ -152,13 +152,16 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 					routingTable.getZonesForIp(ipSet,header.getSrcIp());
 					if(ipSet.size()==0){
 						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
-						advRoutingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+							routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
+						}
 						Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
 					}else if(ipSet.size()!=1 || (*(ipSet.begin()) != header.getZoneId())){
 						routingTable.deleteIpFromZoneMap(header.getSrcIp());
-						advRoutingTable.deleteIpFromZoneMap(header.getSrcIp());
 						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
-						advRoutingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+							routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
+						}
 						Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
 					}
 					continue;
@@ -166,12 +169,13 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 					RoutingTableEntry re (dev,header.getSrcIp(),header.getSeqNo(),header.getMetric(),ptrIp->GetAddress(ptrIp->GetInterfaceForAddress(receiver),0),sender,ns3::Simulator::Now(),settlingTime,true);
 					if(sender==header.getSrcIp()){
 						routingTable.deleteIpFromZoneMap(header.getSrcIp());
-						advRoutingTable.deleteIpFromZoneMap(header.getSrcIp());
 						std::set<uint32_t> neighbourZones;
 						header.getNeighbourZones(neighbourZones);
 						for(uint32_t i : neighbourZones){
 							routingTable.addZoneIp(header.getSrcIp(),i);
-							advRoutingTable.addZoneIp(header.getSrcIp(),i);
+						}
+						if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+							routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
 						}
 					}
 					routingTable.addRouteEntry(re);
@@ -197,7 +201,9 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 						event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
 						advRoutingTable.addEvent(header.getSrcIp(),event);
 						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
-						advRoutingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+							routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
+						}
 						continue;
 					}else if(header.getZoneId() == getZoneId()){
 						if(sender==header.getSrcIp()){
@@ -232,6 +238,9 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 									}
 								}
 							}
+							if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+								routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
+							}
 							if(sendLocationUpdate){
 								Simulator::Schedule(settlingTime,&RoutingProtocol::sendTriggeredLocationUpdate,this);
 							}
@@ -262,7 +271,59 @@ void RoutingProtocol::recvUpdates(ns3::Ptr<ns3::Socket> socket){
 						}
 					}
 				}else if(header.getSeqNo() == fwdEntry.getSeqNumber()){
-					if(header.getZoneId()==getZoneId()){
+					if(header.getZoneId() != getZoneId() && header.getSrcIp()==sender){
+						routingTable.deleteIpFromZoneMap(header.getSrcIp());
+						advRoutingTable.deleteIpFromZoneMap(header.getSrcIp());
+						routingTable.deleteRouteEntry(header.getSrcIp());
+						advEntry.setEntryState(EntryState::INVALID);
+						advRoutingTable.updateRoute(advEntry);
+						event = Simulator::Schedule(settlingTime,&RoutingProtocol::SendTriggeredUpdate,this);
+						advRoutingTable.addEvent(header.getSrcIp(),event);
+						routingTable.addZoneIp(header.getSrcIp(),header.getZoneId());
+						if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+							routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
+						}
+						continue;
+					}else if(header.getZoneId() == getZoneId()){
+						if(sender==header.getSrcIp()){
+							std::set<uint32_t> zoneSet;
+							std::set<uint32_t> presentZoneSet;
+							header.getNeighbourZones(zoneSet);
+							routingTable.getZonesForIp(presentZoneSet,header.getSrcIp());
+							bool sendLocationUpdate = false;
+							if(zoneSet!=presentZoneSet){
+								for(uint32_t zone : zoneSet){
+									auto findItr = presentZoneSet.find(zone);
+									if(findItr == presentZoneSet.end()){
+										if(!sendLocationUpdate){
+											std::set<Ipv4Address> ipSet;
+											bool foundIp = routingTable.getAllIpforZone(zone,ipSet);
+											if(!foundIp) sendLocationUpdate = true;
+										}
+										routingTable.addZoneIp(header.getSrcIp(),zone);
+										advRoutingTable.addZoneIp(header.getSrcIp(),zone);
+									}
+								}
+								for(uint32_t zone : presentZoneSet){
+									auto findItr = zoneSet.find(zone);
+									if(findItr == zoneSet.end()){
+										routingTable.deleteZoneIp(header.getSrcIp(),zone);
+										advRoutingTable.deleteZoneIp(header.getSrcIp(),zone);
+										if(!sendLocationUpdate){
+											std::set<Ipv4Address> ipSet;
+											bool foundIp = routingTable.getAllIpforZone(zone,ipSet);
+											if(!foundIp) sendLocationUpdate = true;
+										}
+									}
+								}
+							}
+							if(!routingTable.addIpLife(header.getSrcIp(),Simulator::Now())){
+								routingTable.updateIpLife(header.getSrcIp(),Simulator::Now());
+							}
+							if(sendLocationUpdate){
+								Simulator::Schedule(settlingTime,&RoutingProtocol::sendTriggeredLocationUpdate,this);
+							}
+						}
 						if(header.getMetric()<fwdEntry.getMetric().getMagnitude()){
 							//print to cancel timer
 
@@ -374,6 +435,8 @@ void RoutingProtocol::sendPeriodicUpdates(){
 	std::map<Ipv4Address,RoutingTableEntry> removedAddresses,allRoutes;
 	routingTable.purge(removedAddresses);
 	mergeTriggerPeriodicUpdates();
+	routingTable.deleteExpiredZoneIP();
+	advRoutingTable.deleteExpiredZoneIP();
 	routingTable.getAllRoutes(allRoutes);
 	if(allRoutes.empty()) return;
 	for(auto j = intrazoneSocketMap.begin();j!=intrazoneSocketMap.end();j++){

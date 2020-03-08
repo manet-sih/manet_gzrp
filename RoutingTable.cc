@@ -143,6 +143,14 @@ bool RoutingTable::deleteZoneIp(ns3::Ipv4Address ip,std::map<uint32_t,std::set<n
 	if(findIp == ipSet.end()) return false;
 	ipSet.erase(findIp);
 	if(ipSet.size() == 0) knownZonesTable.erase(findItr);
+	std::set<uint32_t> zoneSet;
+	getZonesForIp(zoneSet,ip);
+	if(zoneSet.size()==0){
+		auto findItr = zoneLifeMap.find(ip);
+		if(findItr != zoneLifeMap.end()){
+			zoneLifeMap.erase(findItr);
+		}
+	}
 	return true;
 }
 
@@ -150,6 +158,10 @@ bool RoutingTable::deleteIpFromZoneMap(ns3::Ipv4Address addr){
 	bool result = false;
 	for(auto itr = knownZonesTable.begin();itr!=knownZonesTable.end();itr++){
 		result = result||(deleteZoneIp(addr,itr));
+	}
+	auto findItr = zoneLifeMap.find(addr);
+	if(findItr != zoneLifeMap.end()){
+		zoneLifeMap.erase(findItr);
 	}
 	return result;
 }
@@ -164,7 +176,7 @@ void RoutingTable::purge(std::map<ns3::Ipv4Address,RoutingTableEntry>& removedAd
 	if(rTable.empty()) return;
 	for(auto i = rTable.begin();i!=rTable.end();i++){
 		auto iTmp = i;
-		if(i->second.getLifeTime()>holdTime && (i->second.getMetric().getMagnitude()>0)){
+		if((i->second.getLifeTime()>holdTime && (i->second.getMetric().getMagnitude()>0))||i->second.getEntryState() == EntryState::INVALID){
 			for(auto j = rTable.begin();j!=rTable.end();j++){
 				if((j->second.getNextHop() == i->second.getDsptIp())&&(i->second.getMetric().getMagnitude() != j->second.getMetric().getMagnitude())){
 					auto jTmp = j;
@@ -225,4 +237,43 @@ bool RoutingTable::getZoneList(std::set<uint32_t> zones){
 		}
 	}
 	return entryAdded;
+}
+bool RoutingTable::addIpLife(ns3::Ipv4Address addr,ns3::Time time){
+	auto findItr = zoneLifeMap.find(addr);
+	if(findItr != zoneLifeMap.end()){
+		return false;
+	}
+	zoneLifeMap[addr] = time;
+	return true;
+}
+bool RoutingTable::searchIpLife(ns3::Ipv4Address addr,ns3::Time& time){
+	auto findItr = zoneLifeMap.find(addr);
+	if(findItr == zoneLifeMap.end()) return false;
+	time = findItr->second;
+	return true;
+}
+bool RoutingTable::deleteIpLife(ns3::Ipv4Address addr){
+	auto findItr = zoneLifeMap.find(addr);
+	if(findItr == zoneLifeMap.end()) return false;
+	zoneLifeMap.erase(findItr);
+	return true;
+}
+bool RoutingTable::updateIpLife(ns3::Ipv4Address addr, ns3::Time time){
+	auto findItr = zoneLifeMap.find(addr);
+	if(findItr == zoneLifeMap.end()) return false;
+	findItr->second = time;
+	return true;
+}
+bool RoutingTable::deleteExpiredZoneIP(){
+	bool deleted = false;
+	for(auto itr = zoneLifeMap.begin();itr!= zoneLifeMap.end();){
+		if(itr->second<holdTime) {
+			auto temp  = itr;
+			deleteIpFromZoneMap(itr->first);
+			deleted = true;
+			itr++;
+			zoneLifeMap.erase(temp);
+		}
+	}
+	return deleted;
 }
