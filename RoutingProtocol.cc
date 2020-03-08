@@ -352,6 +352,12 @@ void RoutingProtocol::SendTriggeredUpdate(){
 			header.setSrcIp(ptrIp->GetAddress(1,0).GetLocal());
 			header.setSeqNo(temp2.getSeqNumber());
 			header.setMetric((temp2.getMetric()+1).getMagnitude());
+			std::set<uint32_t> zoneSet;
+			if(routingTable.getZoneList(zoneSet)){
+				for(uint32_t zone : zoneSet){
+					header.addZone(zone);
+				}
+			}
 			packet->AddHeader(header);
 			Ipv4Address destination;
 			if(iface.GetMask() == Ipv4Mask::GetOnes()){
@@ -380,6 +386,12 @@ void RoutingProtocol::sendPeriodicUpdates(){
 				RoutingTableEntry ownEntry;
 				header.setSrcIp(ptrIp->GetAddress(1,0).GetLocal());
 				header.setSeqNo(i->second.getSeqNumber()+2);
+				std::set<uint32_t> zoneSet;
+				if(routingTable.getZoneList(zoneSet)){
+					for(uint32_t zone : zoneSet){
+						header.addZone(zone);
+					}
+				}
 				header.setMetric(i->second.getMetric().getMagnitude()+1);
 				routingTable.search(ptrIp->GetAddress(1,0).GetBroadcast(),ownEntry);
 				ownEntry.setSeqNumber(header.getSeqNo());
