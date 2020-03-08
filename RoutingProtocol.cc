@@ -479,3 +479,32 @@ int64_t RoutingProtocol::assignStreams(int64_t stream){
 	random_variable->SetStream(stream);
 	return 1;
 }
+void RoutingProtocol::sendTriggeredLocationUpdate(){
+	for(auto j = intrazoneSocketMap.begin();j!=intrazoneSocketMap.end();j++){
+		GzrpPacket header;
+		Ptr<Socket> socket = j->first;
+		Ipv4InterfaceAddress iface = j->second;
+		Ptr<Packet> packet = Create<Packet>();
+		RoutingTableEntry temp2;
+		routingTable.search(ptrIp->GetAddress(1,0).GetBroadcast(),temp2);
+		header.setSrcIp(ptrIp->GetAddress(1,0).GetLocal());
+		header.setSeqNo(temp2.getSeqNumber()+2);
+		header.setMetric((temp2.getMetric()+1).getMagnitude());
+		std::set<uint32_t> zoneSet;
+		if(routingTable.getZoneList(zoneSet)){
+			for(uint32_t zone : zoneSet){
+				header.addZone(zone);
+			}
+		}
+		packet->AddHeader(header);
+		Ipv4Address destination;
+		if(iface.GetMask() == Ipv4Mask::GetOnes()){
+			destination = Ipv4Address("255.255.255.255");
+		}else{
+			destination = iface.GetBroadcast();
+		}
+		socket->SendTo(packet,0,InetSocketAddress(destination,INTRAZONE_PORT));
+		temp2.setSeqNumber(header.getSeqNo());
+		routingTable.updateRoute(temp2);
+	}
+}

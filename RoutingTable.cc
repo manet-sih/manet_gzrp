@@ -216,3 +216,13 @@ bool RoutingTable::getAllIpforZone(uint32_t zone,std::set<ns3::Ipv4Address> set)
 	set = itr->second;
 	return true;
 }
+bool RoutingTable::getZoneList(std::set<uint32_t> zones){
+	bool entryAdded = false;
+	for(auto itr = knownZonesTable.begin();itr!=knownZonesTable.end();itr++){
+		if(itr->second.size() != 0){
+			zones.insert(itr->first);
+			entryAdded = true;
+		}
+	}
+	return entryAdded;
+}
